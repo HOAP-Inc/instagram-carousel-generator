@@ -7,12 +7,11 @@ import { verifyNotionPage } from '@/lib/notion';
 import { generateContent } from '@/lib/llm';
 import { generateCarouselImages, bufferToBase64 } from '@/lib/image-generator';
 import { createJob, updateJob, savePhoto, saveOutputImage } from '@/lib/storage';
-import { getClientSettings, formatKnowledgeForLLM } from '@/lib/client-settings';
 
 export async function POST(request: NextRequest) {
   try {
-    const body: GenerateRequest = await request.json();
-    const { notionPageUrl, surveyText, designNumber, photos } = body;
+    const body = await request.json();
+    const { notionPageUrl, surveyText, designNumber, photos, clientContext = '' } = body;
 
     // バリデーション
     if (!notionPageUrl || !surveyText || !designNumber || !photos || photos.length !== 3) {
@@ -52,10 +51,6 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-
-    // クライアント設定を取得
-    const clientSettings = await getClientSettings('default');
-    const clientContext = formatKnowledgeForLLM(clientSettings.knowledge);
 
     // ジョブを作成
     const job = await createJob(

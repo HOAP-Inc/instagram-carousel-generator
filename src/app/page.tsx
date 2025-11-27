@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { DesignNumber } from '@/lib/types';
 
@@ -12,6 +12,37 @@ interface GenerationResult {
   images: [string, string, string];
 }
 
+const SETTINGS_KEY = 'instagram-carousel-settings';
+
+// 設定からLLM用コンテキストを生成
+function formatKnowledgeForLLM(knowledge: any): string {
+  const parts: string[] = [];
+  
+  if (knowledge?.companyDescription) {
+    parts.push(`【会社・施設について】\n${knowledge.companyDescription}`);
+  }
+  if (knowledge?.uniqueWords?.length > 0) {
+    parts.push(`【独自の用語・ワード】\n${knowledge.uniqueWords.join('、')}`);
+  }
+  if (knowledge?.tone) {
+    parts.push(`【文章のトーン】\n${knowledge.tone}`);
+  }
+  if (knowledge?.targetAudience) {
+    parts.push(`【ターゲット層】\n${knowledge.targetAudience}`);
+  }
+  if (knowledge?.hashtags?.length > 0) {
+    parts.push(`【使用するハッシュタグ】\n${knowledge.hashtags.join(' ')}`);
+  }
+  if (knowledge?.ngWords?.length > 0) {
+    parts.push(`【禁止ワード（絶対に使わない）】\n${knowledge.ngWords.join('、')}`);
+  }
+  if (knowledge?.additionalContext) {
+    parts.push(`【その他の注意点】\n${knowledge.additionalContext}`);
+  }
+  
+  return parts.join('\n\n');
+}
+
 export default function Home() {
   // フォーム状態
   const [notionUrl, setNotionUrl] = useState('');
@@ -19,6 +50,7 @@ export default function Home() {
   const [designNumber, setDesignNumber] = useState<DesignNumber>(1);
   const [photos, setPhotos] = useState<(File | null)[]>([null, null, null]);
   const [photoPreviews, setPhotoPreviews] = useState<(string | null)[]>([null, null, null]);
+  const [clientContext, setClientContext] = useState('');
   
   // 生成状態
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +63,20 @@ export default function Home() {
   const [notionSaveSuccess, setNotionSaveSuccess] = useState(false);
   
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
+
+  // localStorageから設定を読み込み
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SETTINGS_KEY);
+      if (saved) {
+        const settings = JSON.parse(saved);
+        const context = formatKnowledgeForLLM(settings.knowledge);
+        setClientContext(context);
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  }, []);
 
   // 写真選択ハンドラー
   const handlePhotoSelect = useCallback((index: number, file: File | null) => {
@@ -100,6 +146,7 @@ export default function Home() {
           surveyText,
           designNumber,
           photos: photoBase64s,
+          clientContext, // 設定から読み込んだナレッジを送信
         }),
       });
       

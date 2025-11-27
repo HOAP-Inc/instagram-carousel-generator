@@ -32,6 +32,49 @@ interface ClientSettings {
   updatedAt: string;
 }
 
+const STORAGE_KEY = 'instagram-carousel-settings';
+
+function getDefaultSettings(): ClientSettings {
+  return {
+    id: 'default',
+    name: '',
+    knowledge: {
+      companyDescription: '',
+      uniqueWords: [],
+      tone: '親しみやすく、温かみのある',
+      targetAudience: '',
+      hashtags: ['#採用', '#求人'],
+      ngWords: [],
+      additionalContext: '',
+    },
+    designs: {
+      design1: {
+        name: 'シアン＆マゼンタ',
+        backgroundImage: null,
+        primaryColor: '#00D4FF',
+        accentColor: '#FF69B4',
+        textColor: '#FF1493',
+      },
+      design2: {
+        name: 'ピンク＆ブルー',
+        backgroundImage: null,
+        primaryColor: '#FFB6C1',
+        accentColor: '#87CEEB',
+        textColor: '#4169E1',
+      },
+      design3: {
+        name: 'イエロー＆グレー',
+        backgroundImage: null,
+        primaryColor: '#FFD700',
+        accentColor: '#808080',
+        textColor: '#FF8C00',
+      },
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<ClientSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,24 +84,22 @@ export default function SettingsPage() {
   
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  // 設定を読み込み
+  // localStorageから設定を読み込み
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
     try {
-      const response = await fetch('/api/settings?clientId=default');
-      const data = await response.json();
-      if (data.success) {
-        setSettings(data.settings);
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setSettings(JSON.parse(saved));
+      } else {
+        setSettings(getDefaultSettings());
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
+      setSettings(getDefaultSettings());
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // 設定を保存
   const handleSave = async () => {
@@ -68,22 +109,15 @@ export default function SettingsPage() {
     setMessage(null);
     
     try {
-      const response = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setMessage({ type: 'success', text: '設定を保存しました！' });
-        setSettings(data.settings);
-      } else {
-        setMessage({ type: 'error', text: data.error || '保存に失敗しました' });
-      }
+      const updatedSettings = {
+        ...settings,
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSettings));
+      setSettings(updatedSettings);
+      setMessage({ type: 'success', text: '設定を保存しました！' });
     } catch (error) {
-      setMessage({ type: 'error', text: '保存中にエラーが発生しました' });
+      setMessage({ type: 'error', text: '保存に失敗しました' });
     } finally {
       setIsSaving(false);
     }
@@ -177,6 +211,11 @@ export default function SettingsPage() {
             {message.text}
           </div>
         )}
+
+        {/* 注意書き */}
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 text-sm">
+          💡 設定はこのブラウザに保存されます。別のデバイスでは引き継がれません。
+        </div>
 
         {/* タブ */}
         <div className="flex gap-2 mb-6">
@@ -450,4 +489,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
