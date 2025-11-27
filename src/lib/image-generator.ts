@@ -1,9 +1,25 @@
 // Instagramカルーセル自動生成アプリ - 画像生成
 
-import { createCanvas, loadImage, CanvasRenderingContext2D, Image } from 'canvas';
+import { createCanvas, loadImage, CanvasRenderingContext2D, Image, registerFont } from 'canvas';
 import { DesignNumber, TextPosition } from './types';
 import { IMAGE_SIZE, DESIGN_THEMES } from './constants';
 import fs from 'fs';
+import path from 'path';
+
+// 日本語フォントを登録
+let fontRegistered = false;
+try {
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Bold.otf');
+  if (fs.existsSync(fontPath)) {
+    registerFont(fontPath, { family: 'NotoSansJP', weight: 'bold' });
+    fontRegistered = true;
+    console.log('✅ 日本語フォント登録成功:', fontPath);
+  } else {
+    console.warn('⚠️ フォントファイルが見つかりません:', fontPath);
+  }
+} catch (error) {
+  console.error('❌ フォント登録エラー:', error);
+}
 
 /**
  * 人物の配置位置
@@ -221,8 +237,8 @@ function drawTextWithShadow(
   const fontSize = calculateFontSize(fullText);
   const lineHeight = fontSize * 1.5;
   
-  // けいおん風の丸ゴシックフォント
-  ctx.font = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", "ヒラギノ丸ゴ ProN", sans-serif`;
+  // 日本語フォント（Noto Sans JP）
+  ctx.font = `bold ${fontSize}px "NotoSansJP", "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
   
   lines.forEach((line, index) => {
     if (!line) return;
