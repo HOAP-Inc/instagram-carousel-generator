@@ -328,7 +328,7 @@ async function removeBackgroundWithRemoveBg(imageBuffer: Buffer): Promise<Buffer
   }
   
   const formData = new FormData();
-  formData.append('image_file', new Blob([imageBuffer]), 'image.png');
+  formData.append('image_file', new Blob([new Uint8Array(imageBuffer)]), 'image.png');
   formData.append('size', 'auto');
   formData.append('format', 'png');
   
