@@ -2,39 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-
-interface DesignTemplate {
-  name: string;
-  backgroundImage: string | null;
-  primaryColor: string;
-  accentColor: string;
-  textColor: string;
-}
-
-interface ClientSettings {
-  id: string;
-  name: string;
-  knowledge: {
-    companyDescription: string;
-    uniqueWords: string[];
-    tone: string;
-    targetAudience: string;
-    hashtags: string[];
-    ngWords: string[];
-    additionalContext: string;
-  };
-  designs: {
-    design1: DesignTemplate;
-    design2: DesignTemplate;
-    design3: DesignTemplate;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
+import type { ClientSettings, DesignTemplate } from '@/lib/types';
 
 const STORAGE_KEY = 'instagram-carousel-settings';
 
-function getDefaultSettings(): ClientSettings {
+export function getDefaultSettings(): ClientSettings {
   return {
     id: 'default',
     name: '',
@@ -43,9 +15,9 @@ function getDefaultSettings(): ClientSettings {
       uniqueWords: [],
       tone: '親しみやすく、温かみのある',
       targetAudience: '',
-      hashtags: ['#採用', '#求人'],
       ngWords: [],
       additionalContext: '',
+      pdfFiles: [],
     },
     designs: {
       design1: {
@@ -83,6 +55,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'knowledge' | 'designs'>('knowledge');
   
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
 
   // localStorageから設定を読み込み
   useEffect(() => {
@@ -163,6 +136,39 @@ export default function SettingsPage() {
       updateDesign(designKey, 'backgroundImage', e.target?.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  // PDFファイルのアップロード
+  const handlePdfUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (!settings) return;
+      const newFile = {
+        name: file.name,
+        data: e.target?.result as string,
+      };
+      setSettings({
+        ...settings,
+        knowledge: {
+          ...settings.knowledge,
+          pdfFiles: [...settings.knowledge.pdfFiles, newFile],
+        },
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // PDFファイルの削除
+  const handlePdfDelete = (index: number) => {
+    if (!settings) return;
+    const newFiles = settings.knowledge.pdfFiles.filter((_, i) => i !== index);
+    setSettings({
+      ...settings,
+      knowledge: {
+        ...settings.knowledge,
+        pdfFiles: newFiles,
+      },
+    });
   };
 
   if (isLoading) {
@@ -250,39 +256,75 @@ export default function SettingsPage() {
               <input
                 type="text"
                 className="input-field"
-                placeholder="例: ウォームハート介護施設"
+                placeholder="例: HOAP訪問看護ステーション"
                 value={settings.name}
                 onChange={(e) => setSettings({ ...settings, name: e.target.value })}
               />
             </section>
 
-            {/* 会社説明 */}
+            {/* 会社説明と独自ワード */}
             <section className="card">
-              <h3 className="font-semibold mb-3 text-[var(--text)]">会社・施設の説明</h3>
+              <h3 className="font-semibold mb-3 text-[var(--text)]">会社・施設の説明と独自ワード</h3>
               <textarea
                 className="textarea-field"
-                placeholder="会社の特徴、理念、雰囲気などを記入してください..."
+                placeholder="会社の特徴、理念、雰囲気、独自の用語などを記入してください...&#10;&#10;例:&#10;・訪問看護を通じて地域の健康を支える&#10;・「ほーぷちゃん」というマスコットキャラクター&#10;・「寄り添いケア」を大切にしている"
                 value={settings.knowledge.companyDescription}
                 onChange={(e) => updateKnowledge('companyDescription', e.target.value)}
-                rows={4}
+                rows={8}
               />
               <p className="text-sm text-[var(--text-light)] mt-2">
                 LLMがコンテンツ生成時に参照します
               </p>
             </section>
 
-            {/* 独自ワード */}
+            {/* PDF等の資料 */}
             <section className="card">
-              <h3 className="font-semibold mb-3 text-[var(--text)]">独自のワード・用語</h3>
-              <textarea
-                className="textarea-field"
-                placeholder="例: ほーぷちゃん、ウォームハートファミリー、寄り添いケア..."
-                value={settings.knowledge.uniqueWords.join('、')}
-                onChange={(e) => updateArrayField('uniqueWords', e.target.value)}
-                rows={2}
+              <h3 className="font-semibold mb-3 text-[var(--text)]">資料（PDF等）</h3>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                ref={pdfInputRef}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePdfUpload(file);
+                }}
               />
+              <button
+                className="file-upload w-full cursor-pointer"
+                onClick={() => pdfInputRef.current?.click()}
+              >
+                <span className="text-3xl">📄</span>
+                <p className="text-sm text-[var(--text-light)] mt-2">
+                  クリックして資料をアップロード（PDF, Word, テキスト）
+                </p>
+              </button>
+              
+              {/* アップロード済みファイル一覧 */}
+              {settings.knowledge.pdfFiles.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {settings.knowledge.pdfFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-[var(--surface)] border border-[var(--border)] rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>📄</span>
+                        <span className="text-sm text-[var(--text)]">{file.name}</span>
+                      </div>
+                      <button
+                        className="text-sm text-red-500 hover:underline"
+                        onClick={() => handlePdfDelete(index)}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
               <p className="text-sm text-[var(--text-light)] mt-2">
-                カンマまたは読点で区切ってください
+                会社の資料をアップロードすると、LLMがその内容も参照してコンテンツを生成します
               </p>
             </section>
 
@@ -307,21 +349,6 @@ export default function SettingsPage() {
                 placeholder="例: 20〜40代の看護師・介護士志望の方"
                 value={settings.knowledge.targetAudience}
                 onChange={(e) => updateKnowledge('targetAudience', e.target.value)}
-              />
-            </section>
-
-            {/* ハッシュタグ */}
-            <section className="card">
-              <h3 className="font-semibold mb-3 text-[var(--text)]">よく使うハッシュタグ</h3>
-              <textarea
-                className="textarea-field"
-                placeholder="#採用 #求人 #医療 #介護..."
-                value={settings.knowledge.hashtags.join(' ')}
-                onChange={(e) => {
-                  const tags = e.target.value.split(/[\s,、]/).filter(s => s);
-                  updateKnowledge('hashtags', tags);
-                }}
-                rows={2}
               />
             </section>
 

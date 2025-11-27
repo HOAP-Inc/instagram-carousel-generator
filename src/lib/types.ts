@@ -137,3 +137,35 @@ export interface ClientContext {
   updatedAt: string;
 }
 
+/**
+ * クライアント設定（localStorage保存用）
+ */
+export interface ClientSettings {
+  id: string;
+  name: string;
+  knowledge: {
+    companyDescription: string;
+    uniqueWords: string[];
+    tone: string;
+    targetAudience: string;
+    ngWords: string[];
+    additionalContext: string;
+    pdfFiles: Array<{ name: string; data: string }>;
+  };
+  designs: {
+    design1: DesignTemplate;
+    design2: DesignTemplate;
+    design3: DesignTemplate;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DesignTemplate {
+  name: string;
+  backgroundImage: string | null;
+  primaryColor: string;
+  accentColor: string;
+  textColor: string;
+}
+
