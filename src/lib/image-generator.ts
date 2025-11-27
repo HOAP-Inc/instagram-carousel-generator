@@ -94,15 +94,15 @@ function getTextCoordinates(
 }
 
 /**
- * テキストサイズを自動調整
+ * テキストサイズを自動調整（大きめに）
  */
-function calculateFontSize(text: string, minSize: number = 44, maxSize: number = 80): number {
+function calculateFontSize(text: string, minSize: number = 60, maxSize: number = 110): number {
   const charCount = text.length;
   
   if (charCount <= 20) return maxSize;
-  if (charCount <= 35) return Math.max(minSize, maxSize - 10);
-  if (charCount <= 50) return Math.max(minSize, maxSize - 20);
-  if (charCount <= 70) return Math.max(minSize, maxSize - 28);
+  if (charCount <= 35) return Math.max(minSize, maxSize - 15);
+  if (charCount <= 50) return Math.max(minSize, maxSize - 25);
+  if (charCount <= 70) return Math.max(minSize, maxSize - 35);
   return minSize;
 }
 
