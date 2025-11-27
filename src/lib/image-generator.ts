@@ -86,26 +86,27 @@ function getPersonCoordinates(
 }
 
 /**
- * テキスト位置の座標を計算
+ * テキスト位置の座標を計算（人物を避ける）
  */
 function getTextCoordinates(
   position: TextPosition,
   canvasWidth: number,
   canvasHeight: number,
-  padding: number = 60
+  padding: number = 80
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
   switch (position) {
     case 'top-left':
-      return { x: padding, y: padding + 80, align: 'left', baseline: 'top' };
+      return { x: padding, y: padding + 100, align: 'left', baseline: 'top' };
     case 'top-right':
-      return { x: canvasWidth - padding, y: padding + 80, align: 'right', baseline: 'top' };
+      return { x: canvasWidth - padding, y: padding + 100, align: 'right', baseline: 'top' };
     case 'bottom-left':
-      return { x: padding, y: canvasHeight - padding - 200, align: 'left', baseline: 'bottom' };
+      return { x: padding, y: canvasHeight - padding - 150, align: 'left', baseline: 'bottom' };
     case 'bottom-right':
-      return { x: canvasWidth - padding, y: canvasHeight - padding - 200, align: 'right', baseline: 'bottom' };
+      return { x: canvasWidth - padding, y: canvasHeight - padding - 150, align: 'right', baseline: 'bottom' };
     case 'center':
     default:
-      return { x: canvasWidth / 2, y: canvasHeight * 0.3, align: 'center', baseline: 'middle' };
+      // 中央は上寄りに配置（人物は下に配置されるため）
+      return { x: canvasWidth / 2, y: canvasHeight * 0.25, align: 'center', baseline: 'middle' };
   }
 }
 
@@ -220,7 +221,7 @@ function drawBackgroundPattern(
 }
 
 /**
- * けいおん風フォントでテキストを描画
+ * テキストを描画（枠からはみ出さないように）
  */
 function drawTextWithShadow(
   ctx: CanvasRenderingContext2D,
@@ -228,32 +229,56 @@ function drawTextWithShadow(
   position: TextPosition,
   designNumber: DesignNumber
 ) {
-  const coords = getTextCoordinates(position, ctx.canvas.width, ctx.canvas.height);
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const padding = 80; // 余白を大きく
+  
+  const coords = getTextCoordinates(position, canvasWidth, canvasHeight, padding);
   
   ctx.textAlign = coords.align;
   ctx.textBaseline = coords.baseline;
   
   const fullText = lines.join('');
-  const fontSize = calculateFontSize(fullText);
-  const lineHeight = fontSize * 1.5;
+  let fontSize = calculateFontSize(fullText);
+  let lineHeight = fontSize * 1.5;
   
   // 日本語フォント（Noto Sans JP）
   ctx.font = `bold ${fontSize}px "NotoSansJP", "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+  
+  // 各行の幅を計算して、枠からはみ出す場合はフォントサイズを縮小
+  const maxWidth = canvasWidth - (padding * 2);
+  let needsResize = false;
+  
+  for (const line of lines) {
+    if (!line) continue;
+    const metrics = ctx.measureText(line);
+    if (metrics.width > maxWidth) {
+      needsResize = true;
+      // フォントサイズを調整
+      const ratio = maxWidth / metrics.width;
+      fontSize = Math.floor(fontSize * ratio * 0.95); // 5%の余裕を持たせる
+    }
+  }
+  
+  if (needsResize) {
+    lineHeight = fontSize * 1.5;
+    ctx.font = `bold ${fontSize}px "NotoSansJP", "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+  }
   
   lines.forEach((line, index) => {
     if (!line) return;
     
     const y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
     
-    // 黒い縁取り（超太く）
+    // 黒い縁取り
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(30, fontSize * 0.18);
+    ctx.lineWidth = Math.max(12, fontSize * 0.12);
     ctx.lineJoin = 'round';
     ctx.strokeText(line, coords.x, y);
     
-    // 白い縁取り（超太く）
+    // 白い縁取り
     ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = Math.max(15, fontSize * 0.1);
+    ctx.lineWidth = Math.max(6, fontSize * 0.06);
     ctx.strokeText(line, coords.x, y);
     
     // 本文（デザイン別カラー）
