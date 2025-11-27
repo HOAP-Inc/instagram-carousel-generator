@@ -94,15 +94,15 @@ function getTextCoordinates(
 }
 
 /**
- * テキストサイズを自動調整（超大きめ）
+ * テキストサイズを自動調整（超超超大きめ）
  */
-function calculateFontSize(text: string, minSize: number = 120, maxSize: number = 200): number {
+function calculateFontSize(text: string, minSize: number = 200, maxSize: number = 350): number {
   const charCount = text.length;
   
   if (charCount <= 20) return maxSize;
-  if (charCount <= 35) return Math.max(minSize, maxSize - 30);
-  if (charCount <= 50) return Math.max(minSize, maxSize - 50);
-  if (charCount <= 70) return Math.max(minSize, maxSize - 70);
+  if (charCount <= 35) return Math.max(minSize, maxSize - 50);
+  if (charCount <= 50) return Math.max(minSize, maxSize - 80);
+  if (charCount <= 70) return Math.max(minSize, maxSize - 120);
   return minSize;
 }
 
@@ -227,15 +227,15 @@ function drawTextWithShadow(
     
     const y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
     
-    // 黒い縁取り（太く）
+    // 黒い縁取り（超太く）
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(16, fontSize * 0.15);
+    ctx.lineWidth = Math.max(30, fontSize * 0.18);
     ctx.lineJoin = 'round';
     ctx.strokeText(line, coords.x, y);
     
-    // 白い縁取り（太く）
+    // 白い縁取り（超太く）
     ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = Math.max(8, fontSize * 0.08);
+    ctx.lineWidth = Math.max(15, fontSize * 0.1);
     ctx.strokeText(line, coords.x, y);
     
     // 本文（デザイン別カラー）
