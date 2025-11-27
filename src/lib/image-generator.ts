@@ -94,16 +94,18 @@ function getTextCoordinates(
 }
 
 /**
- * テキストサイズを自動調整（超超超大きめ）
+ * テキストサイズを自動調整（画面いっぱい）
  */
-function calculateFontSize(text: string, minSize: number = 200, maxSize: number = 350): number {
+function calculateFontSize(text: string, minSize: number = 280, maxSize: number = 450): number {
   const charCount = text.length;
   
-  if (charCount <= 20) return maxSize;
-  if (charCount <= 35) return Math.max(minSize, maxSize - 50);
-  if (charCount <= 50) return Math.max(minSize, maxSize - 80);
-  if (charCount <= 70) return Math.max(minSize, maxSize - 120);
-  return minSize;
+  // 文字数が少ないほど大きく
+  if (charCount <= 15) return maxSize; // 450px
+  if (charCount <= 25) return Math.max(minSize, 420);
+  if (charCount <= 35) return Math.max(minSize, 380);
+  if (charCount <= 50) return Math.max(minSize, 340);
+  if (charCount <= 70) return Math.max(minSize, 300);
+  return minSize; // 280px
 }
 
 /**
