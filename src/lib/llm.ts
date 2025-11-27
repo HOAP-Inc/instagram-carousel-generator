@@ -81,8 +81,8 @@ export async function generateContent(
       const completion = await getOpenAIClient().chat.completions.create({
         model: 'gpt-4o',
         messages,
-        temperature: 0.7,
-        max_tokens: 2000,
+        temperature: 0.8,
+        max_tokens: 3000,
       });
 
       const responseText = completion.choices[0]?.message?.content || '';
