@@ -84,18 +84,29 @@ export function isLLMFailureMessage(text: string): boolean {
 }
 
 /**
- * JSONレスポンスをパース
+ * JSONレスポンスをパース（改善版）
  */
 export function parseLLMResponse(text: string): LLMResponse | null {
   try {
-    // JSONブロックを抽出（```json ... ``` または直接JSON）
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    const jsonString = jsonMatch ? jsonMatch[1] : text;
+    console.log('🔍 LLM生レスポンス:', text.substring(0, 200) + '...');
     
-    // パース
+    // 1. ```json ... ``` ブロックを抽出
+    let jsonString = text;
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      jsonString = jsonMatch[1];
+    } else {
+      // 2. { ... } を抽出（前後の説明文を除去）
+      const objectMatch = text.match(/\{[\s\S]*\}/);
+      if (objectMatch) {
+        jsonString = objectMatch[0];
+      }
+    }
+    
+    // 3. パース
     const parsed = JSON.parse(jsonString.trim());
     
-    // 必須フィールドのチェック
+    // 4. 必須フィールドのチェック
     if (
       !parsed.slide1 ||
       !parsed.slide2 ||
@@ -108,9 +119,11 @@ export function parseLLMResponse(text: string): LLMResponse | null {
       parsed.slide2.length !== 2 ||
       parsed.slide3.length !== 2
     ) {
-      console.error('Invalid LLM response structure:', parsed);
+      console.error('❌ 無効なLLMレスポンス構造:', parsed);
       return null;
     }
+    
+    console.log('✅ JSONパース成功');
     
     return {
       slide1: [parsed.slide1[0], parsed.slide1[1]],
@@ -120,7 +133,8 @@ export function parseLLMResponse(text: string): LLMResponse | null {
       style_tags: parsed.style_tags || [],
     };
   } catch (error) {
-    console.error('Failed to parse LLM response:', error);
+    console.error('❌ JSONパース失敗:', error);
+    console.error('生テキスト:', text);
     return null;
   }
 }

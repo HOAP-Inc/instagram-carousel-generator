@@ -510,7 +510,7 @@ export default function SettingsPage() {
       {/* フッター */}
       <footer className="app-footer mt-16">
         <div className="max-w-4xl mx-auto px-6 py-6 text-center text-sm text-[var(--text-light)]">
-          <p>© 2024 HOAP Inc. - Instagram Carousel Generator</p>
+          <p>© 2025 HOAP Inc. - Instagram Carousel Generator</p>
         </div>
       </footer>
     </div>
