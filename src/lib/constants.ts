@@ -14,9 +14,9 @@ export const IMAGE_SIZE = {
  * 文字数制限
  */
 export const CHAR_LIMITS = {
-  slide1: { min: 30, max: 35 },
-  slide2: { min: 50, max: 75 },
-  slide3: { min: 50, max: 75 },
+  slide1: { min: 15, max: 35 },
+  slide2: { min: 30, max: 75 },
+  slide3: { min: 30, max: 75 },
 } as const;
 
 /**
