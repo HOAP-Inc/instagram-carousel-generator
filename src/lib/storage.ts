@@ -8,9 +8,9 @@ import path from 'path';
 // インメモリストレージ（MVP用、本番ではDBを使用）
 const jobStore = new Map<string, GenerationJob>();
 
-// 一時ファイル保存ディレクトリ
-const TEMP_DIR = path.join(process.cwd(), 'tmp', 'uploads');
-const OUTPUT_DIR = path.join(process.cwd(), 'tmp', 'outputs');
+// 一時ファイル保存ディレクトリ（Vercel対応: /tmpを使用）
+const TEMP_DIR = path.join('/tmp', 'uploads');
+const OUTPUT_DIR = path.join('/tmp', 'outputs');
 
 /**
  * ディレクトリを確保
