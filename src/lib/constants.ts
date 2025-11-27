@@ -22,7 +22,7 @@ export const CHAR_LIMITS = {
 /**
  * LLM再試行回数（文字数を満たすまで何度でも）
  */
-export const MAX_LLM_RETRIES = 5;
+export const MAX_LLM_RETRIES = 10;
 
 /**
  * 禁止表記

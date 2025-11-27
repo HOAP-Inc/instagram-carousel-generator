@@ -133,19 +133,11 @@ export async function generateContent(
     }
   }
 
-  // 最大再試行回数を超えた場合でも、最後のパース済みデータがあれば返す
-  if (lastParsedData) {
-    console.log('⚠️ 文字数は理想的ではありませんが、生成結果を返します');
-    return {
-      success: true,
-      data: lastParsedData,
-    };
-  }
-
-  // パース済みデータもない場合のみエラー
+  // 最大再試行回数を超えた場合はエラーを返す（文字数不足は許容しない）
+  console.error('❌ 最大再試行回数を超えました。文字数を満たせませんでした。');
   return {
     success: false,
-    error: `生成に失敗しました。もう一度お試しください。`,
+    error: `文字数の条件を満たせませんでした。以下の問題があります：\n${lastValidationErrors.join('\n')}\n\nアンケート内容をもう少し詳しく記入して、再度お試しください。`,
   };
 }
 
