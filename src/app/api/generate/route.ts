@@ -7,6 +7,7 @@ import { verifyNotionPage } from '@/lib/notion';
 import { generateContent } from '@/lib/llm';
 import { generateCarouselImages, bufferToBase64 } from '@/lib/image-generator';
 import { createJob, updateJob, savePhoto, saveOutputImage } from '@/lib/storage';
+import { getClientSettings, formatKnowledgeForLLM } from '@/lib/client-settings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // クライアント設定を取得
+    const clientSettings = await getClientSettings('default');
+    const clientContext = formatKnowledgeForLLM(clientSettings.knowledge);
+
     // ジョブを作成
     const job = await createJob(
       notionPageId,
@@ -68,11 +73,11 @@ export async function POST(request: NextRequest) {
     }
     updateJob(job.id, { photosPaths: photoPaths, status: 'processing' });
 
-    // LLMでコンテンツ生成
+    // LLMでコンテンツ生成（クライアントナレッジを使用）
     const llmResult = await generateContent({
       surveyText,
-      photosMeta: '', // MVPでは空
-      clientContext: '', // MVPでは空
+      photosMeta: '',
+      clientContext, // クライアントのナレッジを渡す
     });
 
     if (!llmResult.success || !llmResult.data) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { DesignNumber } from '@/lib/types';
 
 interface GenerationResult {
@@ -197,7 +198,9 @@ export default function Home() {
               <p className="text-xs text-[var(--text-light)]">採用Instagram投稿を自動生成</p>
             </div>
           </div>
-          <span className="badge">MVP</span>
+          <Link href="/settings" className="btn-secondary text-sm">
+            ⚙️ 設定
+          </Link>
         </div>
       </header>
 
