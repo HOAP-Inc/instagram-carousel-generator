@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const { notionPageUrl, surveyText, designNumber, photos, clientContext = '' } = body;
 
     // バリデーション
-    if (!notionPageUrl || !surveyText || !designNumber || !photos || photos.length !== 3) {
+    if (!surveyText || !designNumber || !photos || photos.length !== 3) {
       return NextResponse.json(
         { success: false, error: '必須項目が不足しています' },
         { status: 400 }
@@ -28,27 +28,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // NotionページIDを抽出
-    const notionPageId = extractNotionPageId(notionPageUrl);
-    if (!notionPageId) {
-      return NextResponse.json(
-        { success: false, error: 'NotionページURLが無効です' },
-        { status: 400 }
-      );
-    }
-
-    // Notionページの存在確認（オプション - API Keyがない場合はスキップ）
-    if (process.env.NOTION_API_KEY) {
-      const pageVerification = await verifyNotionPage(notionPageId);
-      if (!pageVerification.success) {
+    // NotionページIDを抽出（任意）
+    let notionPageId = '';
+    if (notionPageUrl && notionPageUrl.trim()) {
+      const extractedId = extractNotionPageId(notionPageUrl);
+      if (!extractedId) {
         return NextResponse.json(
-          { 
-            success: false, 
-            error: pageVerification.error,
-            missingProperties: pageVerification.missingProperties,
-          },
+          { success: false, error: 'NotionページURLが無効です' },
           { status: 400 }
         );
+      }
+      notionPageId = extractedId;
+
+      // Notionページの存在確認（オプション - API Keyがない場合はスキップ）
+      if (process.env.NOTION_API_KEY) {
+        const pageVerification = await verifyNotionPage(notionPageId);
+        if (!pageVerification.success) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: pageVerification.error,
+              missingProperties: pageVerification.missingProperties,
+            },
+            { status: 400 }
+          );
+        }
       }
     }
 

@@ -150,10 +150,6 @@ export default function Home() {
     setNotionSaveSuccess(false);
     
     // バリデーション
-    if (!notionUrl.trim()) {
-      setError('NotionページURLを入力してください');
-      return;
-    }
     if (!surveyText.trim()) {
       setError('アンケート文を入力してください');
       return;
@@ -175,7 +171,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          notionPageUrl: notionUrl,
+          notionPageUrl: notionUrl || '', // 任意
           surveyText,
           designNumber,
           photos: photoBase64s,

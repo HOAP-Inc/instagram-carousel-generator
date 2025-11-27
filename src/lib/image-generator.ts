@@ -227,15 +227,15 @@ function drawTextWithShadow(
     
     const y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
     
-    // 黒い縁取り
+    // 黒い縁取り（太く）
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 12;
+    ctx.lineWidth = Math.max(16, fontSize * 0.15);
     ctx.lineJoin = 'round';
     ctx.strokeText(line, coords.x, y);
     
-    // 白い縁取り
+    // 白い縁取り（太く）
     ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = Math.max(8, fontSize * 0.08);
     ctx.strokeText(line, coords.x, y);
     
     // 本文（デザイン別カラー）
