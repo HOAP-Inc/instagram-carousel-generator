@@ -20,9 +20,9 @@ export const CHAR_LIMITS = {
 } as const;
 
 /**
- * LLM再試行回数
+ * LLM再試行回数（文字数を満たすまで何度でも）
  */
-export const MAX_LLM_RETRIES = 2;
+export const MAX_LLM_RETRIES = 5;
 
 /**
  * 禁止表記

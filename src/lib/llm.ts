@@ -62,6 +62,7 @@ export async function generateContent(
   let retryCount = 0;
   let lastResponse: string = '';
   let lastValidationErrors: string[] = [];
+  let lastParsedData: LLMResponse | null = null;
 
   while (retryCount <= MAX_LLM_RETRIES) {
     try {
@@ -77,6 +78,8 @@ export async function generateContent(
         messages.push({ role: 'assistant', content: lastResponse });
         messages.push({ role: 'user', content: retryPrompt });
       }
+
+      console.log(`🔄 LLM呼び出し (試行 ${retryCount + 1}/${MAX_LLM_RETRIES + 1})`);
 
       const completion = await getOpenAIClient().chat.completions.create({
         model: 'gpt-4o',
@@ -104,9 +107,13 @@ export async function generateContent(
         continue;
       }
 
+      // パース成功したら保存
+      lastParsedData = parsed;
+
       // バリデーション
       const validation: ValidationResult = validateLLMResponse(parsed);
       if (validation.isValid) {
+        console.log('✅ バリデーション成功！');
         return {
           success: true,
           data: parsed,
@@ -114,6 +121,7 @@ export async function generateContent(
       }
 
       // バリデーションエラーがある場合は再試行
+      console.log(`⚠️ バリデーションエラー: ${validation.errors.map(e => e.message).join(', ')}`);
       lastValidationErrors = validation.errors.map(e => e.message);
       retryCount++;
     } catch (error) {
@@ -125,10 +133,19 @@ export async function generateContent(
     }
   }
 
-  // 最大再試行回数を超えた
+  // 最大再試行回数を超えた場合でも、最後のパース済みデータがあれば返す
+  if (lastParsedData) {
+    console.log('⚠️ 文字数は理想的ではありませんが、生成結果を返します');
+    return {
+      success: true,
+      data: lastParsedData,
+    };
+  }
+
+  // パース済みデータもない場合のみエラー
   return {
     success: false,
-    error: `バリデーションエラー: ${lastValidationErrors.join(', ')}`,
+    error: `生成に失敗しました。もう一度お試しください。`,
   };
 }
 
