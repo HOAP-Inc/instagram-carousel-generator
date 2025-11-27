@@ -3,11 +3,11 @@
 import { TextPosition, ImageGenerationConfig } from './types';
 
 /**
- * 画像サイズ（Instagram正方形）
+ * 画像サイズ（Instagram縦長 4:5）
  */
 export const IMAGE_SIZE = {
   width: 1080,
-  height: 1080,
+  height: 1350,
 } as const;
 
 /**

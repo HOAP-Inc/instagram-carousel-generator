@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { DesignNumber, LLMResponse } from '@/lib/types';
+import { DesignNumber } from '@/lib/types';
 
 interface GenerationResult {
   slide1: [string, string];
@@ -180,30 +180,31 @@ export default function Home() {
   };
 
   return (
-    <div className="gradient-bg min-h-screen">
+    <div className="min-h-screen">
       {/* ヘッダー */}
-      <header className="border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="app-header sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent)] to-pink-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background: 'linear-gradient(135deg, #ec4899, #3b82f6)'}}>
               <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              <h1 className="text-xl font-extrabold gradient-text">
                 Instagram Carousel Generator
               </h1>
-              <p className="text-xs text-gray-500">採用Instagram投稿を自動生成</p>
+              <p className="text-xs text-[var(--text-light)]">採用Instagram投稿を自動生成</p>
             </div>
           </div>
+          <span className="badge">MVP</span>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-4xl mx-auto px-6 py-8">
         {!result ? (
           /* 入力フォーム */
-          <div className="animate-fade-in space-y-8">
+          <div className="animate-fade-in space-y-6">
             {/* NotionページURL */}
             <section className="card">
               <div className="section-header">
@@ -217,7 +218,7 @@ export default function Home() {
                 value={notionUrl}
                 onChange={(e) => setNotionUrl(e.target.value)}
               />
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-[var(--text-light)] mt-2">
                 Instagram進行管理DBの該当レコードのURLを貼り付けてください
               </p>
             </section>
@@ -234,7 +235,7 @@ export default function Home() {
                 value={surveyText}
                 onChange={(e) => setSurveyText(e.target.value)}
               />
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-[var(--text-light)] mt-2">
                 スタッフインタビューのアンケート回答全文を入力
               </p>
             </section>
@@ -267,14 +268,14 @@ export default function Home() {
                         />
                       ) : (
                         <>
-                          <svg className="w-8 h-8 text-gray-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-8 h-8 text-[var(--accent-purple)] mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                           </svg>
-                          <span className="text-sm text-gray-500">写真 {index + 1}</span>
+                          <span className="text-sm text-[var(--text-light)]">写真 {index + 1}</span>
                         </>
                       )}
                     </div>
-                    <p className="text-xs text-center text-gray-500 mt-2">
+                    <p className="text-xs text-center text-[var(--text-light)] mt-2">
                       {index === 0 && '1枚目（タイトル用）'}
                       {index === 1 && '2枚目（中間）'}
                       {index === 2 && '3枚目（締め）'}
@@ -301,7 +302,13 @@ export default function Home() {
                       onChange={() => setDesignNumber(num as DesignNumber)}
                       className="design-radio"
                     />
-                    <div className={`design-label ${designNumber === num ? 'border-[var(--accent)] bg-[rgba(99,102,241,0.1)]' : ''}`}>
+                    <div className={`design-label ${designNumber === num ? 'border-transparent' : ''}`}
+                      style={designNumber === num ? {
+                        backgroundClip: 'padding-box, border-box',
+                        backgroundOrigin: 'border-box',
+                        backgroundImage: 'linear-gradient(white, white), linear-gradient(90deg, #ec4899, #8b5cf6, #3b82f6)',
+                        border: '2px solid transparent'
+                      } : {}}>
                       <div 
                         className="w-16 h-16 rounded-lg mb-2"
                         style={{
@@ -312,8 +319,8 @@ export default function Home() {
                             : 'linear-gradient(135deg, #FFD700 0%, #808080 100%)'
                         }}
                       />
-                      <span className="font-medium">デザイン {num}</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="font-semibold text-[var(--text)]">デザイン {num}</span>
+                      <span className="text-xs text-[var(--text-light)]">
                         {num === 1 && 'シアン＆マゼンタ'}
                         {num === 2 && 'ピンク＆ブルー'}
                         {num === 3 && 'イエロー＆グレー'}
@@ -326,8 +333,8 @@ export default function Home() {
 
             {/* エラー表示 */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
-                {error}
+              <div className="alert-error">
+                ⚠️ {error}
               </div>
             )}
 
@@ -354,9 +361,9 @@ export default function Home() {
           </div>
         ) : (
           /* 結果プレビュー */
-          <div className="animate-fade-in space-y-8">
+          <div className="animate-fade-in space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">生成結果</h2>
+              <h2 className="text-2xl font-extrabold gradient-text">生成結果</h2>
               <button className="btn-secondary" onClick={handleReset}>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -367,16 +374,17 @@ export default function Home() {
 
             {/* 画像プレビュー */}
             <section className="card">
-              <h3 className="font-semibold mb-4">カルーセル画像</h3>
+              <h3 className="font-semibold mb-4 text-[var(--text)]">カルーセル画像</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {result.images.map((url, index) => (
                   <div key={index} className="relative">
                     <img
                       src={url}
                       alt={`Slide ${index + 1}`}
-                      className="preview-image w-full aspect-square object-cover"
+                      className="preview-image w-full object-cover"
+                      style={{ aspectRatio: '1080 / 1350' }}
                     />
-                    <span className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    <span className="absolute top-2 left-2 badge">
                       {index + 1}枚目
                     </span>
                   </div>
@@ -392,13 +400,13 @@ export default function Home() {
                 { title: '3枚目テキスト', lines: result.slide3 },
               ].map((slide, index) => (
                 <section key={index} className="card">
-                  <h3 className="font-semibold mb-2">{slide.title}</h3>
-                  <div className="bg-[var(--background)] rounded-lg p-3 text-sm">
+                  <h3 className="font-semibold mb-2 text-[var(--text)]">{slide.title}</h3>
+                  <div className="bg-[var(--bg-via)] rounded-lg p-3 text-sm">
                     {slide.lines.map((line, i) => (
-                      <p key={i}>{line}</p>
+                      <p key={i} className="text-[var(--text)]">{line}</p>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-[var(--text-light)] mt-2">
                     {slide.lines.join('').length}文字
                   </p>
                 </section>
@@ -408,30 +416,30 @@ export default function Home() {
             {/* キャプション */}
             <section className="card">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold">キャプション</h3>
+                <h3 className="font-semibold text-[var(--text)]">キャプション</h3>
                 <button
-                  className="text-sm text-[var(--accent)] hover:underline"
+                  className="text-sm text-[var(--accent-purple)] hover:underline font-medium"
                   onClick={() => navigator.clipboard.writeText(result.caption)}
                 >
-                  コピー
+                  📋 コピー
                 </button>
               </div>
-              <div className="bg-[var(--background)] rounded-lg p-4 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto">
+              <div className="bg-[var(--bg-via)] rounded-lg p-4 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto text-[var(--text)]">
                 {result.caption}
               </div>
             </section>
 
             {/* エラー表示 */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
-                {error}
+              <div className="alert-error">
+                ⚠️ {error}
               </div>
             )}
 
             {/* 成功メッセージ */}
             {notionSaveSuccess && (
-              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-green-400">
-                ✓ Notionに保存しました
+              <div className="alert-success">
+                ✅ Notionに保存しました
               </div>
             )}
 
@@ -475,8 +483,8 @@ export default function Home() {
       </main>
 
       {/* フッター */}
-      <footer className="border-t border-[var(--border)] mt-16">
-        <div className="max-w-6xl mx-auto px-6 py-6 text-center text-sm text-gray-500">
+      <footer className="app-footer mt-16">
+        <div className="max-w-4xl mx-auto px-6 py-6 text-center text-sm text-[var(--text-light)]">
           <p>© 2024 HOAP Inc. - Instagram Carousel Generator</p>
         </div>
       </footer>

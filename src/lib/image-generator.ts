@@ -1,29 +1,72 @@
 // Instagramカルーセル自動生成アプリ - 画像生成
 
-import { createCanvas, loadImage, registerFont, CanvasRenderingContext2D, Image } from 'canvas';
-import path from 'path';
-import fs from 'fs';
+import { createCanvas, loadImage, CanvasRenderingContext2D, Image } from 'canvas';
 import { DesignNumber, TextPosition } from './types';
-import { IMAGE_SIZE, DESIGN_THEMES, TEXT_POSITIONS } from './constants';
+import { IMAGE_SIZE, DESIGN_THEMES } from './constants';
+import fs from 'fs';
 
-// フォント登録（サーバー起動時に一度だけ実行）
-let fontRegistered = false;
+/**
+ * 人物の配置位置
+ */
+type PersonPosition = 'left' | 'center' | 'right';
 
-function ensureFontRegistered() {
-  if (fontRegistered) return;
-  
-  // システムフォントまたはカスタムフォントを使用
-  // MVP: システムフォントをフォールバックとして使用
-  fontRegistered = true;
+/**
+ * 人物位置をランダムに選択
+ */
+function selectPersonPosition(): PersonPosition {
+  const positions: PersonPosition[] = ['left', 'center', 'right'];
+  return positions[Math.floor(Math.random() * positions.length)];
 }
 
 /**
- * テキスト位置をランダムに選択（顔領域を避ける - MVP簡易版）
+ * 人物位置に応じてテキスト位置を決定（被らないように）
  */
-function selectTextPosition(): TextPosition {
-  // MVP: ランダムに位置を選択
-  const positions: TextPosition[] = ['bottom-left', 'bottom-right', 'top-left', 'top-right', 'center'];
-  return positions[Math.floor(Math.random() * positions.length)];
+function selectTextPositionForPerson(personPos: PersonPosition, textLength: number): TextPosition {
+  const preferTop = textLength > 50;
+  
+  switch (personPos) {
+    case 'left':
+      return preferTop ? 'top-right' : 'bottom-right';
+    case 'right':
+      return preferTop ? 'top-left' : 'bottom-left';
+    case 'center':
+    default:
+      return preferTop ? 'top-left' : 'bottom-left';
+  }
+}
+
+/**
+ * 人物の描画座標を計算
+ */
+function getPersonCoordinates(
+  position: PersonPosition,
+  personWidth: number,
+  personHeight: number,
+  canvasWidth: number,
+  canvasHeight: number
+): { x: number; y: number; scale: number } {
+  const targetHeight = canvasHeight * (0.75 + Math.random() * 0.15);
+  const scale = targetHeight / personHeight;
+  const scaledWidth = personWidth * scale;
+  const scaledHeight = personHeight * scale;
+  
+  const y = canvasHeight - scaledHeight + (scaledHeight * 0.05);
+  
+  let x: number;
+  switch (position) {
+    case 'left':
+      x = -scaledWidth * 0.1 + Math.random() * (canvasWidth * 0.1);
+      break;
+    case 'right':
+      x = canvasWidth - scaledWidth + scaledWidth * 0.1 - Math.random() * (canvasWidth * 0.1);
+      break;
+    case 'center':
+    default:
+      x = (canvasWidth - scaledWidth) / 2 + (Math.random() - 0.5) * (canvasWidth * 0.1);
+      break;
+  }
+  
+  return { x, y, scale };
 }
 
 /**
@@ -37,34 +80,129 @@ function getTextCoordinates(
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
   switch (position) {
     case 'top-left':
-      return { x: padding, y: padding + 100, align: 'left', baseline: 'top' };
+      return { x: padding, y: padding + 80, align: 'left', baseline: 'top' };
     case 'top-right':
-      return { x: canvasWidth - padding, y: padding + 100, align: 'right', baseline: 'top' };
+      return { x: canvasWidth - padding, y: padding + 80, align: 'right', baseline: 'top' };
     case 'bottom-left':
-      return { x: padding, y: canvasHeight - padding - 150, align: 'left', baseline: 'bottom' };
+      return { x: padding, y: canvasHeight - padding - 200, align: 'left', baseline: 'bottom' };
     case 'bottom-right':
-      return { x: canvasWidth - padding, y: canvasHeight - padding - 150, align: 'right', baseline: 'bottom' };
+      return { x: canvasWidth - padding, y: canvasHeight - padding - 200, align: 'right', baseline: 'bottom' };
     case 'center':
     default:
-      return { x: canvasWidth / 2, y: canvasHeight / 2, align: 'center', baseline: 'middle' };
+      return { x: canvasWidth / 2, y: canvasHeight * 0.3, align: 'center', baseline: 'middle' };
   }
 }
 
 /**
  * テキストサイズを自動調整
  */
-function calculateFontSize(text: string, maxWidth: number, minSize: number = 36, maxSize: number = 72): number {
+function calculateFontSize(text: string, minSize: number = 44, maxSize: number = 80): number {
   const charCount = text.length;
   
-  // 文字数に応じてサイズを調整
   if (charCount <= 20) return maxSize;
-  if (charCount <= 40) return Math.max(minSize, maxSize - 12);
-  if (charCount <= 60) return Math.max(minSize, maxSize - 24);
+  if (charCount <= 35) return Math.max(minSize, maxSize - 10);
+  if (charCount <= 50) return Math.max(minSize, maxSize - 20);
+  if (charCount <= 70) return Math.max(minSize, maxSize - 28);
   return minSize;
 }
 
 /**
- * テキストを描画（影付き）
+ * 背景グラデーションを描画
+ */
+function drawBackground(
+  ctx: CanvasRenderingContext2D,
+  designNumber: DesignNumber
+) {
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  
+  let gradient: CanvasGradient;
+  
+  switch (designNumber) {
+    case 1:
+      gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, '#00D4FF');
+      gradient.addColorStop(0.5, '#00A3CC');
+      gradient.addColorStop(1, '#FF69B4');
+      break;
+    case 2:
+      gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, '#FFE4EC');
+      gradient.addColorStop(0.4, '#FFB6C1');
+      gradient.addColorStop(0.7, '#B0E0E6');
+      gradient.addColorStop(1, '#87CEEB');
+      break;
+    case 3:
+    default:
+      gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, '#FFF8DC');
+      gradient.addColorStop(0.3, '#FFD700');
+      gradient.addColorStop(0.7, '#DAA520');
+      gradient.addColorStop(1, '#A0A0A0');
+      break;
+  }
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  
+  drawBackgroundPattern(ctx, designNumber);
+}
+
+/**
+ * 背景の装飾パターン
+ */
+function drawBackgroundPattern(
+  ctx: CanvasRenderingContext2D,
+  designNumber: DesignNumber
+) {
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  
+  ctx.globalAlpha = 0.15;
+  
+  switch (designNumber) {
+    case 1:
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(
+          Math.random() * width,
+          Math.random() * height,
+          50 + Math.random() * 150,
+          0,
+          Math.PI * 2
+        );
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      break;
+    case 2:
+      for (let x = 0; x < width; x += 60) {
+        for (let y = 0; y < height; y += 60) {
+          ctx.beginPath();
+          ctx.arc(x + Math.random() * 20, y + Math.random() * 20, 8, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fill();
+        }
+      }
+      break;
+    case 3:
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      for (let i = -height; i < width + height; i += 80) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + height, height);
+        ctx.stroke();
+      }
+      break;
+  }
+  
+  ctx.globalAlpha = 1;
+}
+
+/**
+ * けいおん風フォントでテキストを描画
  */
 function drawTextWithShadow(
   ctx: CanvasRenderingContext2D,
@@ -72,119 +210,177 @@ function drawTextWithShadow(
   position: TextPosition,
   designNumber: DesignNumber
 ) {
-  const theme = DESIGN_THEMES[designNumber];
   const coords = getTextCoordinates(position, ctx.canvas.width, ctx.canvas.height);
   
   ctx.textAlign = coords.align;
   ctx.textBaseline = coords.baseline;
   
   const fullText = lines.join('');
-  const fontSize = calculateFontSize(fullText, ctx.canvas.width * 0.8);
+  const fontSize = calculateFontSize(fullText);
   const lineHeight = fontSize * 1.5;
   
-  ctx.font = `bold ${fontSize}px "Hiragino Sans", "Noto Sans JP", sans-serif`;
+  // けいおん風の丸ゴシックフォント
+  ctx.font = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", "ヒラギノ丸ゴ ProN", sans-serif`;
   
-  // 各行を描画
   lines.forEach((line, index) => {
+    if (!line) return;
+    
     const y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
     
-    // 影
-    ctx.shadowColor = theme.shadowColor;
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetX = 3;
-    ctx.shadowOffsetY = 3;
+    // 黒い縁取り
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 12;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(line, coords.x, y);
     
-    // 縁取り（視認性向上）
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+    // 白い縁取り
+    ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 6;
     ctx.strokeText(line, coords.x, y);
     
-    // 本文
-    ctx.fillStyle = theme.textColor;
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
+    // 本文（デザイン別カラー）
+    let textColor: string;
+    switch (designNumber) {
+      case 1:
+        textColor = '#FF1493';
+        break;
+      case 2:
+        textColor = '#4169E1';
+        break;
+      case 3:
+        textColor = '#FF8C00';
+        break;
+      default:
+        textColor = '#FF1493';
+    }
+    
+    ctx.fillStyle = textColor;
     ctx.fillText(line, coords.x, y);
   });
 }
 
 /**
- * 円形のフレームを描画
+ * 人物の影を描画
  */
-function drawCircleFrame(
+function drawPersonShadow(
   ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  radius: number,
-  color: string
+  x: number,
+  y: number,
+  width: number,
+  height: number
 ) {
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = '#000000';
   ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 8;
-  ctx.stroke();
+  ctx.ellipse(
+    x + width / 2,
+    y + height - 20,
+    width * 0.35,
+    30,
+    0,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+  ctx.restore();
 }
 
 /**
- * グラデーションオーバーレイを描画
+ * Base64画像データからBufferを取得
  */
-function drawGradientOverlay(
-  ctx: CanvasRenderingContext2D,
-  designNumber: DesignNumber
-) {
-  const theme = DESIGN_THEMES[designNumber];
-  const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
-  
-  gradient.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
-  gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
-  
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+function base64ToBuffer(base64Data: string): Buffer {
+  const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, '');
+  return Buffer.from(base64Content, 'base64');
 }
 
 /**
- * 装飾的な要素を描画
+ * 画像を圧縮（22MB以下に）
  */
-function drawDecorations(
-  ctx: CanvasRenderingContext2D,
-  designNumber: DesignNumber,
-  position: TextPosition
-) {
-  const theme = DESIGN_THEMES[designNumber];
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
+async function compressImage(imageBuffer: Buffer): Promise<Buffer> {
+  const sharp = (await import('sharp')).default;
   
-  // デザインに応じた装飾
-  switch (designNumber) {
-    case 1:
-      // シアン＆マゼンタ: 円形フレーム
-      drawCircleFrame(ctx, width * 0.3, height * 0.4, 280, theme.accentColor);
-      break;
-    case 2:
-      // ピンク＆ブルー: 角の装飾
-      ctx.fillStyle = theme.primaryColor + '40'; // 半透明
-      ctx.fillRect(0, 0, 150, 150);
-      ctx.fillRect(width - 150, height - 150, 150, 150);
-      break;
-    case 3:
-      // イエロー＆グレー: 線の装飾
-      ctx.strokeStyle = theme.primaryColor;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(50, 50);
-      ctx.lineTo(200, 50);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(width - 50, height - 50);
-      ctx.lineTo(width - 200, height - 50);
-      ctx.stroke();
-      break;
+  // 22MB以下ならそのまま返す
+  if (imageBuffer.length < 22 * 1024 * 1024) {
+    return imageBuffer;
   }
+  
+  console.log(`📏 画像が大きいため圧縮中... (${(imageBuffer.length / 1024 / 1024).toFixed(1)}MB)`);
+  
+  // 圧縮: 最大幅2000px、品質80%
+  const compressed = await sharp(imageBuffer)
+    .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+  
+  console.log(`📦 圧縮完了: ${(compressed.length / 1024 / 1024).toFixed(1)}MB`);
+  return compressed;
 }
 
 /**
- * スライド画像を生成
+ * Remove.bg APIで背景を除去
+ */
+async function removeBackgroundWithRemoveBg(imageBuffer: Buffer): Promise<Buffer> {
+  const apiKey = process.env.REMOVEBG_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('REMOVEBG_API_KEY is not set');
+  }
+  
+  const formData = new FormData();
+  formData.append('image_file', new Blob([imageBuffer]), 'image.png');
+  formData.append('size', 'auto');
+  formData.append('format', 'png');
+  
+  console.log('🔄 Remove.bg APIを呼び出し中...');
+  
+  const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+    method: 'POST',
+    headers: {
+      'X-Api-Key': apiKey,
+    },
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Remove.bg API error:', response.status, errorText);
+    throw new Error(`Remove.bg API error: ${response.status}`);
+  }
+  
+  const resultBuffer = Buffer.from(await response.arrayBuffer());
+  console.log(`✂️ 背景除去成功! 出力サイズ: ${resultBuffer.length} bytes`);
+  
+  return resultBuffer;
+}
+
+/**
+ * 背景を除去して人物を切り抜き
+ */
+async function removeBackgroundFromImage(imageData: Buffer | string): Promise<Buffer> {
+  let inputBuffer: Buffer;
+  
+  if (typeof imageData === 'string') {
+    if (imageData.startsWith('data:')) {
+      inputBuffer = base64ToBuffer(imageData);
+    } else {
+      inputBuffer = fs.readFileSync(imageData);
+    }
+  } else {
+    inputBuffer = imageData;
+  }
+  
+  console.log(`📦 入力画像サイズ: ${(inputBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+  
+  // 22MB以上なら圧縮
+  const compressedBuffer = await compressImage(inputBuffer);
+  
+  // Remove.bg APIで背景除去
+  return await removeBackgroundWithRemoveBg(compressedBuffer);
+}
+
+/**
+ * スライド画像を生成（人物切り抜き版）
  */
 export async function generateSlideImage(
   photoData: Buffer | string,
@@ -192,48 +388,66 @@ export async function generateSlideImage(
   designNumber: DesignNumber,
   slideNumber: 1 | 2 | 3
 ): Promise<Buffer> {
-  ensureFontRegistered();
-  
   const canvas = createCanvas(IMAGE_SIZE.width, IMAGE_SIZE.height);
   const ctx = canvas.getContext('2d');
   
-  // 写真を読み込み
-  let photo: Image;
-  if (typeof photoData === 'string') {
-    // Base64またはパス
-    if (photoData.startsWith('data:')) {
-      const base64Data = photoData.replace(/^data:image\/\w+;base64,/, '');
-      photo = await loadImage(Buffer.from(base64Data, 'base64'));
+  // 1. 背景を描画
+  drawBackground(ctx, designNumber);
+  
+  // 2. 人物の背景を除去
+  console.log(`🎭 スライド${slideNumber}: 背景除去中...`);
+  let personBuffer: Buffer;
+  try {
+    personBuffer = await removeBackgroundFromImage(photoData);
+  } catch (error) {
+    console.warn('⚠️ 背景除去に失敗、元画像を使用します:', error);
+    if (typeof photoData === 'string') {
+      if (photoData.startsWith('data:')) {
+        personBuffer = base64ToBuffer(photoData);
+      } else {
+        personBuffer = fs.readFileSync(photoData);
+      }
     } else {
-      photo = await loadImage(photoData);
+      personBuffer = photoData;
     }
-  } else {
-    photo = await loadImage(photoData);
   }
   
-  // 写真を中央基準でトリミングして描画
-  const scale = Math.max(IMAGE_SIZE.width / photo.width, IMAGE_SIZE.height / photo.height);
-  const scaledWidth = photo.width * scale;
-  const scaledHeight = photo.height * scale;
-  const x = (IMAGE_SIZE.width - scaledWidth) / 2;
-  const y = (IMAGE_SIZE.height - scaledHeight) / 2;
+  // 3. 人物画像を読み込み
+  const personImage = await loadImage(personBuffer);
   
-  ctx.drawImage(photo, x, y, scaledWidth, scaledHeight);
+  // 4. 人物の位置を決定（ランダム）
+  const personPosition = selectPersonPosition();
+  const personCoords = getPersonCoordinates(
+    personPosition,
+    personImage.width,
+    personImage.height,
+    IMAGE_SIZE.width,
+    IMAGE_SIZE.height
+  );
   
-  // グラデーションオーバーレイ
-  drawGradientOverlay(ctx, designNumber);
+  // 5. テキスト位置を決定（人物と被らないように）
+  const textLength = lines.join('').length;
+  const textPosition = selectTextPositionForPerson(personPosition, textLength);
   
-  // テキスト位置を選択
-  const textPosition = selectTextPosition();
+  // 6. 人物の影を描画
+  const scaledWidth = personImage.width * personCoords.scale;
+  const scaledHeight = personImage.height * personCoords.scale;
+  drawPersonShadow(ctx, personCoords.x, personCoords.y, scaledWidth, scaledHeight);
   
-  // 装飾を描画
-  drawDecorations(ctx, designNumber, textPosition);
+  // 7. 人物を描画
+  ctx.drawImage(
+    personImage,
+    personCoords.x,
+    personCoords.y,
+    scaledWidth,
+    scaledHeight
+  );
   
-  // テキストを描画
+  // 8. テキストを描画
   drawTextWithShadow(ctx, lines, textPosition, designNumber);
   
-  // スライド番号インジケーター
-  const indicatorY = IMAGE_SIZE.height - 40;
+  // 9. スライド番号インジケーター
+  const indicatorY = IMAGE_SIZE.height - 50;
   const indicatorSpacing = 30;
   const startX = (IMAGE_SIZE.width - (2 * indicatorSpacing)) / 2;
   
@@ -250,6 +464,7 @@ export async function generateSlideImage(
     }
   }
   
+  console.log(`✅ スライド${slideNumber}: 生成完了 (人物: ${personPosition}, テキスト: ${textPosition})`);
   return canvas.toBuffer('image/png');
 }
 
@@ -265,12 +480,13 @@ export async function generateCarouselImages(
   },
   designNumber: DesignNumber
 ): Promise<[Buffer, Buffer, Buffer]> {
-  const [image1, image2, image3] = await Promise.all([
-    generateSlideImage(photos[0], slides.slide1, designNumber, 1),
-    generateSlideImage(photos[1], slides.slide2, designNumber, 2),
-    generateSlideImage(photos[2], slides.slide3, designNumber, 3),
-  ]);
+  console.log('🖼️ カルーセル画像生成開始...');
   
+  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1);
+  const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2);
+  const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3);
+  
+  console.log('🎉 カルーセル画像生成完了！');
   return [image1, image2, image3];
 }
 
@@ -280,4 +496,3 @@ export async function generateCarouselImages(
 export function bufferToBase64(buffer: Buffer, mimeType: string = 'image/png'): string {
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
-

@@ -19,12 +19,42 @@ function getOpenAIClient(): OpenAI {
 }
 
 /**
+ * デモ用モックレスポンス（APIキーなしで動作確認用）
+ */
+function generateMockResponse(surveyText: string): LLMResponse {
+  return {
+    slide1: ['働きやすさNo.1', '私たちの職場へ'],
+    slide2: ['スタッフ同士の仲が良く', '困った時はすぐに助け合える環境です'],
+    slide3: ['あなたも一緒に', '温かいチームで働きませんか？'],
+    caption: `✨ スタッフインタビュー ✨
+
+${surveyText.slice(0, 100)}...
+
+当施設では、スタッフ一人ひとりが輝ける環境づくりを大切にしています。
+
+📍 詳しくはプロフィールのリンクから！
+
+#採用 #求人 #医療 #介護 #看護師 #介護士 #働きやすい職場 #チームワーク`,
+    style_tags: ['warm', 'professional', 'friendly'],
+  };
+}
+
+/**
  * LLMでコンテンツを生成
  */
 export async function generateContent(
   params: LLMInputParams
 ): Promise<{ success: boolean; data?: LLMResponse; error?: string }> {
   const { surveyText, photosMeta, clientContext } = params;
+
+  // APIキーがない場合はデモモード
+  if (!process.env.OPENAI_API_KEY) {
+    console.log('🎭 デモモード: APIキーが未設定のため、モックデータを返します');
+    return {
+      success: true,
+      data: generateMockResponse(surveyText),
+    };
+  }
 
   const systemPrompt = generateSystemPrompt(clientContext);
   const userPrompt = generateUserPrompt(surveyText, photosMeta);
