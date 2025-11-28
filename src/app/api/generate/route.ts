@@ -11,7 +11,7 @@ import { createJob, updateJob, savePhoto, saveOutputImage } from '@/lib/storage'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { notionPageUrl, surveyText, designNumber, photos, clientContext = '' } = body;
+    const { notionPageUrl, surveyText, designNumber, photos, clientContext = '', logoImage = null } = body;
 
     // バリデーション
     if (!surveyText || !designNumber || !photos || photos.length !== 3) {
@@ -101,7 +101,8 @@ export async function POST(request: NextRequest) {
           slide2: llmResult.data.slide2,
           slide3: llmResult.data.slide3,
         },
-        designNumber as DesignNumber
+        designNumber as DesignNumber,
+        logoImage // ロゴ画像を渡す
       );
 
       // 画像を保存

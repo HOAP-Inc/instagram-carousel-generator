@@ -429,7 +429,8 @@ export async function generateSlideImage(
   photoData: Buffer | string,
   lines: [string, string],
   designNumber: DesignNumber,
-  slideNumber: 1 | 2 | 3
+  slideNumber: 1 | 2 | 3,
+  logoImage: string | null = null
 ): Promise<Buffer> {
   const canvas = createCanvas(IMAGE_SIZE.width, IMAGE_SIZE.height);
   const ctx = canvas.getContext('2d');
@@ -489,7 +490,43 @@ export async function generateSlideImage(
   // 8. テキストを描画
   drawTextWithShadow(ctx, lines, textPosition, designNumber);
   
-  // 9. スライド番号インジケーター
+  // 9. ロゴを描画（1枚目のみ）
+  if (slideNumber === 1 && logoImage) {
+    try {
+      const logoBuffer = base64ToBuffer(logoImage);
+      const logo = await loadImage(logoBuffer);
+      
+      // ロゴのサイズを計算（最大200x200、アスペクト比維持）
+      const maxLogoSize = 200;
+      let logoWidth = logo.width;
+      let logoHeight = logo.height;
+      
+      if (logoWidth > maxLogoSize || logoHeight > maxLogoSize) {
+        const ratio = Math.min(maxLogoSize / logoWidth, maxLogoSize / logoHeight);
+        logoWidth = logoWidth * ratio;
+        logoHeight = logoHeight * ratio;
+      }
+      
+      // ロゴを右上に配置
+      const logoPadding = 40;
+      const logoX = IMAGE_SIZE.width - logoWidth - logoPadding;
+      const logoY = logoPadding;
+      
+      // 白い背景を追加（ロゴが見やすくなるように）
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.beginPath();
+      ctx.roundRect(logoX - 10, logoY - 10, logoWidth + 20, logoHeight + 20, 10);
+      ctx.fill();
+      
+      // ロゴを描画
+      ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+      console.log('✅ ロゴを描画しました');
+    } catch (error) {
+      console.error('⚠️ ロゴ描画エラー:', error);
+    }
+  }
+  
+  // 10. スライド番号インジケーター
   const indicatorY = IMAGE_SIZE.height - 50;
   const indicatorSpacing = 30;
   const startX = (IMAGE_SIZE.width - (2 * indicatorSpacing)) / 2;
@@ -521,11 +558,12 @@ export async function generateCarouselImages(
     slide2: [string, string];
     slide3: [string, string];
   },
-  designNumber: DesignNumber
+  designNumber: DesignNumber,
+  logoImage: string | null = null
 ): Promise<[Buffer, Buffer, Buffer]> {
   console.log('🖼️ カルーセル画像生成開始...');
   
-  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1);
+  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1, logoImage);
   const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2);
   const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3);
   

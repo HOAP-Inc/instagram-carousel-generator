@@ -10,6 +10,7 @@ export function getDefaultSettings(): ClientSettings {
   return {
     id: 'default',
     name: '',
+    logoImage: null,
     knowledge: {
       companyDescription: '',
       uniqueWords: [],
@@ -56,6 +57,7 @@ export default function SettingsPage() {
   
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   // localStorageから設定を読み込み
   useEffect(() => {
@@ -171,6 +173,19 @@ export default function SettingsPage() {
     });
   };
 
+  // ロゴ画像のアップロード
+  const handleLogoUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (!settings) return;
+      setSettings({
+        ...settings,
+        logoImage: e.target?.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -260,6 +275,51 @@ export default function SettingsPage() {
                 value={settings.name}
                 onChange={(e) => setSettings({ ...settings, name: e.target.value })}
               />
+            </section>
+
+            {/* ロゴマーク */}
+            <section className="card">
+              <h3 className="font-semibold mb-3 text-[var(--text)]">ロゴマーク</h3>
+              <input
+                type="file"
+                accept="image/*"
+                ref={logoInputRef}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleLogoUpload(file);
+                }}
+              />
+              <div
+                className="file-upload h-40 cursor-pointer"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {settings.logoImage ? (
+                  <img
+                    src={settings.logoImage}
+                    alt="ロゴマーク"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <span className="text-3xl">🏢</span>
+                    <p className="text-sm text-[var(--text-light)] mt-2">
+                      クリックしてロゴ画像をアップロード
+                    </p>
+                  </div>
+                )}
+              </div>
+              {settings.logoImage && (
+                <button
+                  className="text-sm text-red-500 mt-2"
+                  onClick={() => setSettings({ ...settings, logoImage: null })}
+                >
+                  ロゴを削除
+                </button>
+              )}
+              <p className="text-sm text-[var(--text-light)] mt-2">
+                1枚目の画像に表示されます（PNG推奨、背景透過がおすすめ）
+              </p>
             </section>
 
             {/* 会社説明と独自ワード */}

@@ -143,6 +143,7 @@ export interface ClientContext {
 export interface ClientSettings {
   id: string;
   name: string;
+  logoImage: string | null; // ロゴマーク画像（Base64）
   knowledge: {
     companyDescription: string;
     uniqueWords: string[];

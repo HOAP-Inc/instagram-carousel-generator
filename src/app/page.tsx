@@ -51,6 +51,7 @@ export default function Home() {
   const [photos, setPhotos] = useState<(File | null)[]>([null, null, null]);
   const [photoPreviews, setPhotoPreviews] = useState<(string | null)[]>([null, null, null]);
   const [clientContext, setClientContext] = useState('');
+  const [logoImage, setLogoImage] = useState<string | null>(null);
   
   // 生成状態
   const [isLoading, setIsLoading] = useState(false);
@@ -72,6 +73,7 @@ export default function Home() {
         const settings = JSON.parse(saved);
         const context = formatKnowledgeForLLM(settings.knowledge);
         setClientContext(context);
+        setLogoImage(settings.logoImage || null);
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -176,6 +178,7 @@ export default function Home() {
           designNumber,
           photos: photoBase64s,
           clientContext, // 設定から読み込んだナレッジを送信
+          logoImage, // ロゴ画像を送信
         }),
       });
       
@@ -490,7 +493,7 @@ export default function Home() {
                   </p>
                 </section>
               ))}
-            </div>
+        </div>
 
             {/* キャプション */}
             <section className="card">
@@ -557,7 +560,7 @@ export default function Home() {
                 3枚まとめてダウンロード
               </button>
             </div>
-          </div>
+        </div>
         )}
       </main>
 
