@@ -61,24 +61,29 @@ function getPersonCoordinates(
   canvasWidth: number,
   canvasHeight: number
 ): { x: number; y: number; scale: number } {
-  const targetHeight = canvasHeight * (0.75 + Math.random() * 0.15);
+  // 人物を大きく表示（60-80%の高さ）
+  const targetHeight = canvasHeight * (0.6 + Math.random() * 0.2);
   const scale = targetHeight / personHeight;
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
-  const y = canvasHeight - scaledHeight + (scaledHeight * 0.05);
+  // 下部に配置（少し余白を持たせる）
+  const y = canvasHeight - scaledHeight + (scaledHeight * 0.02);
   
   let x: number;
   switch (position) {
     case 'left':
-      x = -scaledWidth * 0.1 + Math.random() * (canvasWidth * 0.1);
+      // 左寄せ（少し中央寄り）
+      x = canvasWidth * 0.05;
       break;
     case 'right':
-      x = canvasWidth - scaledWidth + scaledWidth * 0.1 - Math.random() * (canvasWidth * 0.1);
+      // 右寄せ（少し中央寄り）
+      x = canvasWidth * 0.95 - scaledWidth;
       break;
     case 'center':
     default:
-      x = (canvasWidth - scaledWidth) / 2 + (Math.random() - 0.5) * (canvasWidth * 0.1);
+      // 中央配置
+      x = (canvasWidth - scaledWidth) / 2;
       break;
   }
   
@@ -86,34 +91,38 @@ function getPersonCoordinates(
 }
 
 /**
- * テキスト位置の座標を計算（人物を避ける）
+ * テキスト位置の座標を計算（人物を避けて大きく表示）
  */
 function getTextCoordinates(
   position: TextPosition,
   canvasWidth: number,
   canvasHeight: number,
-  padding: number = 80
+  padding: number = 100
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
   switch (position) {
     case 'top-left':
-      return { x: padding, y: padding + 100, align: 'left', baseline: 'top' };
+      // 左上（余裕を持たせる）
+      return { x: padding, y: padding + 80, align: 'left', baseline: 'top' };
     case 'top-right':
-      return { x: canvasWidth - padding, y: padding + 100, align: 'right', baseline: 'top' };
+      // 右上（余裕を持たせる）
+      return { x: canvasWidth - padding, y: padding + 80, align: 'right', baseline: 'top' };
     case 'bottom-left':
-      return { x: padding, y: canvasHeight - padding - 150, align: 'left', baseline: 'bottom' };
+      // 左下（人物の上に配置）
+      return { x: padding, y: canvasHeight * 0.45, align: 'left', baseline: 'top' };
     case 'bottom-right':
-      return { x: canvasWidth - padding, y: canvasHeight - padding - 150, align: 'right', baseline: 'bottom' };
+      // 右下（人物の上に配置）
+      return { x: canvasWidth - padding, y: canvasHeight * 0.45, align: 'right', baseline: 'top' };
     case 'center':
     default:
-      // 中央は上寄りに配置（人物は下に配置されるため）
-      return { x: canvasWidth / 2, y: canvasHeight * 0.25, align: 'center', baseline: 'middle' };
+      // 中央上部に大きく配置
+      return { x: canvasWidth / 2, y: padding + 80, align: 'center', baseline: 'top' };
   }
 }
 
 /**
- * テキストサイズを自動調整（適切なサイズ）
+ * テキストサイズを自動調整（大きく読みやすく）
  */
-function calculateFontSize(text: string, minSize: number = 90, maxSize: number = 150): number {
+function calculateFontSize(text: string, minSize: number = 120, maxSize: number = 200): number {
   const charCount = text.length;
   
   // 文字数が少ないほど大きく
@@ -233,7 +242,7 @@ function drawTextWithShadow(
 ) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const padding = 80; // 余白を大きく
+  const padding = 100; // 余白を大きく
   
   const coords = getTextCoordinates(position, canvasWidth, canvasHeight, padding);
   
@@ -305,7 +314,16 @@ function drawTextWithShadow(
   lines.forEach((line, index) => {
     if (!line) return;
     
-    const y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
+    // テキストのY座標を計算（baseline考慮）
+    let y: number;
+    if (coords.baseline === 'top') {
+      y = coords.y + (index * lineHeight);
+    } else if (coords.baseline === 'bottom') {
+      y = coords.y - ((lines.length - 1 - index) * lineHeight);
+    } else {
+      // middle
+      y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
+    }
     
     // 黒い縁取り
     ctx.strokeStyle = '#000000';
