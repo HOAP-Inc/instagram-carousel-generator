@@ -26,29 +26,106 @@ try {
  */
 type PersonPosition = 'left' | 'center' | 'right';
 
-/**
- * 人物位置をランダムに選択
- */
-function selectPersonPosition(): PersonPosition {
-  const positions: PersonPosition[] = ['left', 'center', 'right'];
-  return positions[Math.floor(Math.random() * positions.length)];
+type LayoutDecision = {
+  personPosition: PersonPosition;
+  textPosition: TextPosition;
+  textYOffset: number;
+  textAreaRatio: number;
+};
+
+type SlideNumber = 1 | 2 | 3;
+
+const SLIDE_PERSON_PROFILES: Record<SlideNumber, PersonPosition[]> = {
+  1: ['left', 'center', 'right'],
+  2: ['center', 'right', 'left'],
+  3: ['right', 'left', 'center'],
+};
+
+const TEXT_POSITION_SAFE_MAP: Record<PersonPosition, TextPosition[]> = {
+  left: ['top-right', 'center', 'top-left'],
+  center: ['top-left', 'top-right', 'center'],
+  right: ['top-left', 'center', 'top-right'],
+};
+
+interface TextLayoutOptions {
+  yOffset?: number;
+  maxHeightRatio?: number;
 }
 
-/**
- * 人物位置に応じてテキスト位置を決定（被らないように）
- */
-function selectTextPositionForPerson(personPos: PersonPosition, textLength: number): TextPosition {
-  const preferTop = textLength > 50;
-  
-  switch (personPos) {
-    case 'left':
-      return preferTop ? 'top-right' : 'bottom-right';
-    case 'right':
-      return preferTop ? 'top-left' : 'bottom-left';
-    case 'center':
-    default:
-      return preferTop ? 'top-left' : 'bottom-left';
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+function uniqueArray<T>(values: T[]): T[] {
+  return Array.from(new Set(values));
+}
+
+function pickWithBias<T>(options: T[]): T {
+  if (options.length === 0) {
+    throw new Error('候補が空です');
   }
+  if (options.length === 1) return options[0];
+  const biasProbability = 0.65;
+  if (Math.random() < biasProbability) {
+    return options[0];
+  }
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+function convertSpaceToTextPosition(space?: string | null): TextPosition | null {
+  if (!space) return null;
+  const normalized = space.toLowerCase();
+  if (normalized.includes('top-left')) return 'top-left';
+  if (normalized.includes('top-right')) return 'top-right';
+  if (normalized.includes('bottom-left')) return 'bottom-left';
+  if (normalized.includes('bottom-right')) return 'bottom-right';
+  if (normalized.includes('center')) return 'center';
+  return null;
+}
+
+function determineSlideLayout(slideNumber: SlideNumber, photoAnalysis?: any): LayoutDecision {
+  const basePersonOptions = SLIDE_PERSON_PROFILES[slideNumber];
+  let personCandidates = [...basePersonOptions];
+  
+  const analysisPos = photoAnalysis?.personPosition;
+  if (analysisPos && ['left', 'center', 'right'].includes(analysisPos)) {
+    personCandidates = uniqueArray<PersonPosition>([analysisPos as PersonPosition, ...personCandidates]);
+  }
+  
+  const personPosition = pickWithBias(personCandidates);
+  
+  let textCandidates = [...TEXT_POSITION_SAFE_MAP[personPosition]];
+  const recommended = convertSpaceToTextPosition(photoAnalysis?.recommendedTextPosition);
+  
+  if (recommended && textCandidates.includes(recommended)) {
+    textCandidates = uniqueArray<TextPosition>([recommended, ...textCandidates]);
+  } else if (Array.isArray(photoAnalysis?.emptySpaces)) {
+    const emptySpaces: string[] = photoAnalysis.emptySpaces;
+    const mapped = emptySpaces
+      .map((space: string) => convertSpaceToTextPosition(space))
+      .filter((pos): pos is TextPosition => Boolean(pos))
+      .filter((pos) => textCandidates.includes(pos));
+    if (mapped.length > 0) {
+      textCandidates = uniqueArray<TextPosition>([...mapped, ...textCandidates]);
+    }
+  }
+  
+  const textPosition = pickWithBias(textCandidates);
+  
+  const baseOffsets: Record<SlideNumber, number> = {
+    1: -10,
+    2: 5,
+    3: 15,
+  };
+  const jitter = Math.floor(Math.random() * 30) - 10; // -10〜+19px
+  const textYOffset = baseOffsets[slideNumber] + jitter;
+  
+  const textAreaRatio = slideNumber === 2 ? 0.32 : slideNumber === 3 ? 0.36 : 0.38;
+  
+  return {
+    personPosition,
+    textPosition,
+    textYOffset,
+    textAreaRatio,
+  };
 }
 
 /**
@@ -62,15 +139,17 @@ function getPersonCoordinates(
   canvasHeight: number,
   slideNumber: number = 1
 ): { x: number; y: number; scale: number } {
-  // 人物を下部60%のエリアに配置（上部40%はテキスト用）
+  // 人物を下部エリアに配置（上部はテキスト用）
   const personAreaHeight = canvasHeight * 0.65;
-  const targetHeight = personAreaHeight * 0.95; // エリアの95%
+  const sizeMultiplier = slideNumber === 1 ? 0.9 : slideNumber === 2 ? 1.0 : 0.95;
+  const targetHeight = personAreaHeight * sizeMultiplier;
   const scale = targetHeight / personHeight;
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
-  // 下部に配置（少しはみ出させる）
-  const y = canvasHeight - scaledHeight + 30;
+  // 下部に配置（少しだけ上下に揺らす）
+  const verticalJitter = Math.floor(Math.random() * 20) - 10;
+  const y = canvasHeight - scaledHeight + 40 + verticalJitter;
   
   let x: number;
   switch (position) {
@@ -92,7 +171,10 @@ function getPersonCoordinates(
       break;
   }
   
-  return { x, y, scale };
+  const horizontalJitter = Math.floor(Math.random() * 40) - 20;
+  const safeX = clamp(x + horizontalJitter, 40, canvasWidth - scaledWidth - 40);
+  
+  return { x: safeX, y, scale };
 }
 
 /**
@@ -102,22 +184,22 @@ function getTextCoordinates(
   position: TextPosition,
   canvasWidth: number,
   canvasHeight: number,
-  padding: number = 80
+  padding: number = 80,
+  yOffset: number = 0
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
-  // 全て上部に配置（写真に被らないように）
-  const topY = padding + 60;
+  const topY = clamp(padding + 60 + yOffset, 40, canvasHeight * 0.45);
   
   switch (position) {
     case 'top-left':
       return { x: padding, y: topY, align: 'left', baseline: 'top' };
     case 'top-right':
       return { x: canvasWidth - padding, y: topY, align: 'right', baseline: 'top' };
+    case 'bottom-left':
+      return { x: padding, y: topY + 20, align: 'left', baseline: 'top' };
+    case 'bottom-right':
+      return { x: canvasWidth - padding, y: topY + 20, align: 'right', baseline: 'top' };
     case 'center':
     default:
-      return { x: canvasWidth / 2, y: topY, align: 'center', baseline: 'top' };
-    case 'bottom-left':
-    case 'bottom-right':
-      // 下部は使わない（写真に被るため）
       return { x: canvasWidth / 2, y: topY, align: 'center', baseline: 'top' };
   }
 }
@@ -151,21 +233,6 @@ function wrapText(
   }
   
   return wrappedLines;
-}
-
-/**
- * テキストサイズを計算（全ての文字が入るように）
- */
-function calculateFontSize(text: string, minSize: number = 120, maxSize: number = 250): number {
-  const charCount = text.length;
-  
-  // 文字数に応じてサイズを決定
-  if (charCount <= 15) return maxSize; // 250px
-  if (charCount <= 25) return 220;
-  if (charCount <= 35) return 190;
-  if (charCount <= 50) return 160;
-  if (charCount <= 70) return 140;
-  return minSize; // 120px
 }
 
 /**
@@ -272,13 +339,20 @@ function drawTextWithShadow(
   position: TextPosition,
   designNumber: DesignNumber,
   customTextColor: string | null = null,
-  customFontFamily: string | null = null
+  customFontFamily: string | null = null,
+  layoutOptions: TextLayoutOptions = {}
 ) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
   const padding = 80;
   
-  const coords = getTextCoordinates(position, canvasWidth, canvasHeight, padding);
+  const coords = getTextCoordinates(
+    position,
+    canvasWidth,
+    canvasHeight,
+    padding,
+    layoutOptions.yOffset || 0
+  );
   
   ctx.textAlign = coords.align;
   ctx.textBaseline = coords.baseline;
@@ -287,7 +361,7 @@ function drawTextWithShadow(
   const fullText = lines.join('');
   let fontSize = 180; // 初期サイズ
   const maxWidth = canvasWidth - (padding * 2);
-  const maxTextHeight = canvasHeight * 0.35; // テキストエリアは上部35%まで（写真に被らない）
+  const maxTextHeight = canvasHeight * (layoutOptions.maxHeightRatio || 0.35); // 写真に被らないように高さ制限
   
   // フォントファミリーを決定
   const fontFamily = customFontFamily || 'NotoSansJP';
@@ -537,8 +611,9 @@ export async function generateSlideImage(
   // 3. 人物画像を読み込み
   const personImage = await loadImage(personBuffer);
   
-  // 4. 人物の位置を決定（スライド番号に応じてバリエーション）
-  const personPosition = selectPersonPosition();
+  // 4. レイアウトを決定（Vision API + ランダムバリエーション）
+  const layoutDecision = determineSlideLayout(slideNumber as SlideNumber, photoAnalysis);
+  const personPosition = layoutDecision.personPosition;
   const personCoords = getPersonCoordinates(
     personPosition,
     personImage.width,
@@ -548,11 +623,11 @@ export async function generateSlideImage(
     slideNumber // スライド番号を渡してバリエーションを出す
   );
   
-  // 5. テキスト位置を決定（人物と被らないように）
-  const textLength = lines.join('').length;
-  const textPosition = selectTextPositionForPerson(personPosition, textLength);
+  const textPosition = layoutDecision.textPosition;
   
-  console.log(`📍 スライド${slideNumber}: 人物=${personPosition}, テキスト=${textPosition}`);
+  console.log(
+    `📍 スライド${slideNumber}: 人物=${personPosition}, テキスト=${textPosition}, yOffset=${layoutDecision.textYOffset}`
+  );
   
   // 6. 人物の影を描画
   const scaledWidth = personImage.width * personCoords.scale;
@@ -571,7 +646,18 @@ export async function generateSlideImage(
   // 8. テキストを描画（カスタムテキストカラーとフォントを使用）
   const customTextColor = customDesign?.textColor || null;
   const customFontFamily = customDesign?.fontFamily || null;
-  drawTextWithShadow(ctx, lines, textPosition, designNumber, customTextColor, customFontFamily);
+  drawTextWithShadow(
+    ctx,
+    lines,
+    textPosition,
+    designNumber,
+    customTextColor,
+    customFontFamily,
+    {
+      yOffset: layoutDecision.textYOffset,
+      maxHeightRatio: layoutDecision.textAreaRatio,
+    }
+  );
   
   // 9. ロゴを描画（1枚目のみ）
   if (slideNumber === 1 && logoImage) {
