@@ -61,24 +61,24 @@ function getPersonCoordinates(
   canvasWidth: number,
   canvasHeight: number
 ): { x: number; y: number; scale: number } {
-  // 人物を大きく表示（60-80%の高さ）
-  const targetHeight = canvasHeight * (0.6 + Math.random() * 0.2);
+  // 人物を超大きく表示（70-90%の高さ）
+  const targetHeight = canvasHeight * (0.75 + Math.random() * 0.15);
   const scale = targetHeight / personHeight;
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
-  // 下部に配置（少し余白を持たせる）
-  const y = canvasHeight - scaledHeight + (scaledHeight * 0.02);
+  // 下部に配置（ほぼ画面いっぱい）
+  const y = canvasHeight - scaledHeight;
   
   let x: number;
   switch (position) {
     case 'left':
-      // 左寄せ（少し中央寄り）
-      x = canvasWidth * 0.05;
+      // 左寄せ
+      x = canvasWidth * 0.02;
       break;
     case 'right':
-      // 右寄せ（少し中央寄り）
-      x = canvasWidth * 0.95 - scaledWidth;
+      // 右寄せ
+      x = canvasWidth * 0.98 - scaledWidth;
       break;
     case 'center':
     default:
@@ -91,47 +91,47 @@ function getPersonCoordinates(
 }
 
 /**
- * テキスト位置の座標を計算（人物を避けて大きく表示）
+ * テキスト位置の座標を計算（大きく目立つように）
  */
 function getTextCoordinates(
   position: TextPosition,
   canvasWidth: number,
   canvasHeight: number,
-  padding: number = 100
+  padding: number = 80
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
   switch (position) {
     case 'top-left':
-      // 左上（余裕を持たせる）
-      return { x: padding, y: padding + 80, align: 'left', baseline: 'top' };
+      // 左上（大きく表示）
+      return { x: padding, y: padding + 60, align: 'left', baseline: 'top' };
     case 'top-right':
-      // 右上（余裕を持たせる）
-      return { x: canvasWidth - padding, y: padding + 80, align: 'right', baseline: 'top' };
+      // 右上（大きく表示）
+      return { x: canvasWidth - padding, y: padding + 60, align: 'right', baseline: 'top' };
     case 'bottom-left':
-      // 左下（人物の上に配置）
-      return { x: padding, y: canvasHeight * 0.45, align: 'left', baseline: 'top' };
+      // 左下（人物の上に大きく）
+      return { x: padding, y: canvasHeight * 0.35, align: 'left', baseline: 'top' };
     case 'bottom-right':
-      // 右下（人物の上に配置）
-      return { x: canvasWidth - padding, y: canvasHeight * 0.45, align: 'right', baseline: 'top' };
+      // 右下（人物の上に大きく）
+      return { x: canvasWidth - padding, y: canvasHeight * 0.35, align: 'right', baseline: 'top' };
     case 'center':
     default:
-      // 中央上部に大きく配置
-      return { x: canvasWidth / 2, y: padding + 80, align: 'center', baseline: 'top' };
+      // 中央上部に超大きく配置
+      return { x: canvasWidth / 2, y: padding + 60, align: 'center', baseline: 'top' };
   }
 }
 
 /**
- * テキストサイズを自動調整（大きく読みやすく）
+ * テキストサイズを自動調整（超大きく、迫力のあるサイズ）
  */
-function calculateFontSize(text: string, minSize: number = 120, maxSize: number = 200): number {
+function calculateFontSize(text: string, minSize: number = 140, maxSize: number = 250): number {
   const charCount = text.length;
   
-  // 文字数が少ないほど大きく
-  if (charCount <= 15) return maxSize; // 150px
-  if (charCount <= 25) return Math.max(minSize, 140);
-  if (charCount <= 35) return Math.max(minSize, 125);
-  if (charCount <= 50) return Math.max(minSize, 110);
-  if (charCount <= 70) return Math.max(minSize, 100);
-  return minSize; // 90px
+  // 文字数が少ないほど超大きく
+  if (charCount <= 15) return maxSize; // 250px
+  if (charCount <= 25) return 220;
+  if (charCount <= 35) return 190;
+  if (charCount <= 50) return 160;
+  if (charCount <= 70) return 145;
+  return minSize; // 140px
 }
 
 /**
@@ -325,15 +325,15 @@ function drawTextWithShadow(
       y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
     }
     
-    // 黒い縁取り
+    // 黒い縁取り（超太く）
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(12, fontSize * 0.12);
+    ctx.lineWidth = Math.max(18, fontSize * 0.15);
     ctx.lineJoin = 'round';
     ctx.strokeText(line, coords.x, y);
     
-    // 白い縁取り
+    // 白い縁取り（太く）
     ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = Math.max(6, fontSize * 0.06);
+    ctx.lineWidth = Math.max(10, fontSize * 0.08);
     ctx.strokeText(line, coords.x, y);
     
     // 本文（カスタムカラーまたはデザイン別カラー）
