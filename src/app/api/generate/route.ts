@@ -61,7 +61,13 @@ export async function POST(request: NextRequest) {
       notionPageId,
       notionPageUrl,
       surveyText,
-      designNumber as DesignNumber
+      designNumber as DesignNumber,
+      {
+        mainTheme,
+        clientContext,
+        logoImage,
+        customDesign,
+      }
     );
 
     // 写真を保存

@@ -4,7 +4,7 @@
  * LLMが返す固定フォーマット
  */
 export interface LLMResponse {
-  slide1: [string, string]; // 各2行
+  slide1: [string, string]; // 各2行（1行にまとめても可）
   slide2: [string, string];
   slide3: [string, string];
   caption: string; // 投稿文全文
@@ -15,6 +15,20 @@ export interface LLMResponse {
  * デザイン番号（1-3）
  */
 export type DesignNumber = 1 | 2 | 3;
+
+export type TextPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+export type PersonPosition = 'left' | 'center' | 'right';
+
+export interface SlideManualOverride {
+  personPosition?: PersonPosition;
+  personOffsetX?: number;
+  personOffsetY?: number;
+  personScale?: number;
+  textPosition?: TextPosition;
+  textYOffset?: number;
+  textAreaRatio?: number;
+  fontScale?: number;
+}
 
 /**
  * 生成ジョブのステータス
@@ -29,8 +43,12 @@ export interface GenerationJob {
   notionPageId: string;
   notionPageUrl: string;
   surveyText: string;
+  mainTheme?: string;
+  clientContext?: string;
   photosPaths: [string, string, string]; // 3枚のパス
   designNumber: DesignNumber;
+  logoImage?: string | null;
+  customDesign?: any;
   llmResponseJson: LLMResponse | null;
   outputPngPaths: [string, string, string] | null; // 生成後の3枚
   outputPngUrls: [string, string, string] | null; // クライアント用URL
@@ -67,11 +85,6 @@ export interface ValidationError {
 }
 
 /**
- * テキスト位置候補
- */
-export type TextPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
-
-/**
  * 画像生成設定
  */
 export interface ImageGenerationConfig {
@@ -88,8 +101,12 @@ export interface ImageGenerationConfig {
 export interface GenerateRequest {
   notionPageUrl: string;
   surveyText: string;
+  mainTheme?: string;
   designNumber: DesignNumber;
   photos: string[]; // Base64エンコード済み画像データ
+  clientContext?: string;
+  logoImage?: string | null;
+  customDesign?: any;
 }
 
 export interface GenerateResponse {
@@ -170,5 +187,16 @@ export interface DesignTemplate {
   accentColor: string;
   textColor: string;
   fontFamily: string; // フォント選択
+}
+
+export interface RegenerateImagesRequest {
+  jobId: string;
+  slides: {
+    slide1: string;
+    slide2: string;
+    slide3: string;
+  };
+  caption: string;
+  overrides?: Array<SlideManualOverride | null>;
 }
 

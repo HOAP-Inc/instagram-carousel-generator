@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { DesignNumber } from '@/lib/types';
+import { DesignNumber, PersonPosition, TextPosition } from '@/lib/types';
 
 interface GenerationResult {
   slide1: [string, string];
@@ -11,6 +11,23 @@ interface GenerationResult {
   caption: string;
   images: [string, string, string];
 }
+
+type SlideKey = 'slide1' | 'slide2' | 'slide3';
+type PositionOption = 'auto' | PersonPosition;
+type TextPositionOption = 'auto' | TextPosition;
+type DesignTweak = {
+  fontScale: number;
+  personPosition: PositionOption;
+  textPosition: TextPositionOption;
+  offsetX: number;
+  offsetY: number;
+};
+
+const createDefaultTweaks = (): DesignTweak[] => ([
+  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0 },
+  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0 },
+  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0 },
+]);
 
 const SETTINGS_KEY = 'instagram-carousel-settings';
 
@@ -66,12 +83,139 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [editableSlides, setEditableSlides] = useState({
+    slide1: '',
+    slide2: '',
+    slide3: '',
+    caption: '',
+  });
+  const [designTweaks, setDesignTweaks] = useState(createDefaultTweaks);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenMessage, setRegenMessage] = useState<string | null>(null);
   
   // Notion保存状態
   const [isSavingToNotion, setIsSavingToNotion] = useState(false);
   const [notionSaveSuccess, setNotionSaveSuccess] = useState(false);
   
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
+
+  const tupleFromText = (text: string): [string, string] => [text.trim(), ''];
+
+  const handleSlideTextChange = (key: SlideKey, value: string) => {
+    setEditableSlides((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleCaptionChange = (value: string) => {
+    setEditableSlides((prev) => ({ ...prev, caption: value }));
+  };
+
+  const handleApplyTextEdits = () => {
+    if (!result) {
+      setError('まずコンテンツを生成してください');
+      return;
+    }
+    setResult((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        slide1: tupleFromText(editableSlides.slide1),
+        slide2: tupleFromText(editableSlides.slide2),
+        slide3: tupleFromText(editableSlides.slide3),
+        caption: editableSlides.caption,
+      };
+    });
+    setRegenMessage('テキストを更新しました');
+  };
+
+  const handleDesignTweakChange = <K extends keyof DesignTweak>(index: number, field: K, value: DesignTweak[K]) => {
+    setDesignTweaks((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const resetDesignTweaks = () => {
+    setDesignTweaks(createDefaultTweaks);
+  };
+
+  const handleRegenerateImages = async () => {
+    if (!jobId) {
+      setError('ジョブ情報がないため再描画できません。最初から生成してください。');
+      return;
+    }
+    setIsRegenerating(true);
+    setError(null);
+    setRegenMessage(null);
+    
+    try {
+      const response = await fetch('/api/regenerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId,
+          slides: {
+            slide1: editableSlides.slide1,
+            slide2: editableSlides.slide2,
+            slide3: editableSlides.slide3,
+          },
+          caption: editableSlides.caption,
+          overrides: designTweaks.map((tweak) => ({
+            fontScale: tweak.fontScale,
+            personPosition: tweak.personPosition === 'auto' ? undefined : tweak.personPosition,
+            textPosition: tweak.textPosition === 'auto' ? undefined : tweak.textPosition,
+            personOffsetX: tweak.offsetX,
+            personOffsetY: tweak.offsetY,
+          })),
+        }),
+      });
+      
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || '画像の再描画に失敗しました');
+        return;
+      }
+      
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          slide1: data.data.slide1,
+          slide2: data.data.slide2,
+          slide3: data.data.slide3,
+          caption: data.data.caption,
+          images: data.data.images,
+        };
+      });
+      
+      setEditableSlides({
+        slide1: data.data.slide1.filter(Boolean).join('\n') || data.data.slide1[0] || '',
+        slide2: data.data.slide2.filter(Boolean).join('\n') || data.data.slide2[0] || '',
+        slide3: data.data.slide3.filter(Boolean).join('\n') || data.data.slide3[0] || '',
+        caption: data.data.caption,
+      });
+      setRegenMessage('画像を再描画しました');
+    } catch (err) {
+      console.error(err);
+      setError('再描画中にエラーが発生しました');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  // 生成結果に合わせて編集フォームを同期
+  useEffect(() => {
+    if (result) {
+      setEditableSlides({
+        slide1: result.slide1.filter(Boolean).join('\n') || result.slide1[0] || '',
+        slide2: result.slide2.filter(Boolean).join('\n') || result.slide2[0] || '',
+        slide3: result.slide3.filter(Boolean).join('\n') || result.slide3[0] || '',
+        caption: result.caption,
+      });
+      setDesignTweaks(createDefaultTweaks);
+      setRegenMessage(null);
+    }
+  }, [result]);
 
   // localStorageから設定を読み込み
   useEffect(() => {
@@ -181,6 +325,8 @@ export default function Home() {
     setError(null);
     setResult(null);
     setNotionSaveSuccess(false);
+    resetDesignTweaks();
+    setRegenMessage(null);
     
     // バリデーション
     if (!surveyText.trim()) {
@@ -294,6 +440,9 @@ export default function Home() {
     setJobId(null);
     setNotionSaveSuccess(false);
     setError(null);
+    setEditableSlides({ slide1: '', slide2: '', slide3: '', caption: '' });
+    resetDesignTweaks();
+    setRegenMessage(null);
   };
 
   return (
@@ -569,6 +718,150 @@ export default function Home() {
               <div className="bg-[var(--bg-via)] rounded-lg p-4 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto text-[var(--text)]">
                 {result.caption}
               </div>
+            </section>
+
+            {/* コンテンツ修正フォーム */}
+            <section className="card">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-[var(--text)]">コンテンツ内容を修正</h3>
+                  <p className="text-xs text-[var(--text-light)]">テキストを編集して即座に反映できます</p>
+                </div>
+                <button className="btn-secondary text-sm" onClick={handleApplyTextEdits}>
+                  テキストに反映
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(['slide1', 'slide2', 'slide3'] as SlideKey[]).map((key, index) => (
+                  <div key={key}>
+                    <label className="block text-sm font-semibold mb-2 text-[var(--text)]">
+                      {index + 1}枚目テキスト
+                    </label>
+                    <textarea
+                      className="textarea-field min-h-[140px]"
+                      value={editableSlides[key]}
+                      onChange={(e) => handleSlideTextChange(key, e.target.value)}
+                      placeholder="テキストを編集してください"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-semibold mb-2 text-[var(--text)]">キャプション</label>
+                <textarea
+                  className="textarea-field min-h-[120px]"
+                  value={editableSlides.caption}
+                  onChange={(e) => handleCaptionChange(e.target.value)}
+                  placeholder="投稿文を編集してください"
+                />
+              </div>
+            </section>
+
+            {/* デザイン微調整 */}
+            <section className="card">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-[var(--text)]">デザイン微調整（テキストサイズ・人物位置）</h3>
+                  <p className="text-xs text-[var(--text-light)]">各スライドごとにフォント倍率と人物位置を調整できます</p>
+                </div>
+                <div className="flex gap-2">
+                  <button className="btn-secondary text-sm" onClick={resetDesignTweaks}>
+                    リセット
+                  </button>
+                  <button
+                    className="btn-primary text-sm"
+                    onClick={handleRegenerateImages}
+                    disabled={isRegenerating}
+                  >
+                    {isRegenerating ? (
+                      <>
+                        <div className="loading-spinner w-4 h-4" />
+                        再描画中...
+                      </>
+                    ) : (
+                      '画像を再描画'
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {designTweaks.map((tweak, index) => (
+                  <div key={index} className="bg-[var(--bg-via)] rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-[var(--text)]">{index + 1}枚目</span>
+                    </div>
+                    <div>
+                      <label className="text-xs text-[var(--text-light)]">人物配置</label>
+                      <select
+                        className="input-field mt-1"
+                        value={tweak.personPosition}
+                        onChange={(e) => handleDesignTweakChange(index, 'personPosition', e.target.value as PositionOption)}
+                      >
+                        {(['auto', 'left', 'center', 'right'] as PositionOption[]).map((option) => (
+                          <option key={option} value={option}>
+                            {option === 'auto' ? '自動' : option === 'left' ? '左寄せ' : option === 'right' ? '右寄せ' : '中央'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-[var(--text-light)]">テキスト配置</label>
+                      <select
+                        className="input-field mt-1"
+                        value={tweak.textPosition}
+                        onChange={(e) => handleDesignTweakChange(index, 'textPosition', e.target.value as TextPositionOption)}
+                      >
+                        {(['auto', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'] as TextPositionOption[]).map((option) => (
+                          <option key={option} value={option}>
+                            {option === 'auto' ? '自動' : option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-[var(--text-light)]">
+                        テキストサイズ倍率: {tweak.fontScale.toFixed(2)}x
+                      </label>
+                      <input
+                        type="range"
+                        min={0.7}
+                        max={1.4}
+                        step={0.02}
+                        value={tweak.fontScale}
+                        onChange={(e) => handleDesignTweakChange(index, 'fontScale', parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-[var(--text-light)]">人物 横位置微調整: {tweak.offsetX}px</label>
+                      <input
+                        type="range"
+                        min={-200}
+                        max={200}
+                        step={5}
+                        value={tweak.offsetX}
+                        onChange={(e) => handleDesignTweakChange(index, 'offsetX', parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-[var(--text-light)]">人物 縦位置微調整: {tweak.offsetY}px</label>
+                      <input
+                        type="range"
+                        min={-80}
+                        max={80}
+                        step={5}
+                        value={tweak.offsetY}
+                        onChange={(e) => handleDesignTweakChange(index, 'offsetY', parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {regenMessage && (
+                <p className="text-sm text-green-500 mt-4">{regenMessage}</p>
+              )}
             </section>
 
             {/* エラー表示 */}

@@ -26,11 +26,19 @@ async function ensureDir(dir: string): Promise<void> {
 /**
  * 新しいジョブを作成
  */
+interface JobCreateOptions {
+  mainTheme?: string;
+  clientContext?: string;
+  logoImage?: string | null;
+  customDesign?: any;
+}
+
 export async function createJob(
   notionPageId: string,
   notionPageUrl: string,
   surveyText: string,
-  designNumber: DesignNumber
+  designNumber: DesignNumber,
+  options: JobCreateOptions = {}
 ): Promise<GenerationJob> {
   const id = uuidv4();
   const now = new Date().toISOString();
@@ -40,8 +48,12 @@ export async function createJob(
     notionPageId,
     notionPageUrl,
     surveyText,
+    mainTheme: options.mainTheme,
+    clientContext: options.clientContext,
     photosPaths: ['', '', ''],
     designNumber,
+    logoImage: options.logoImage ?? null,
+    customDesign: options.customDesign ?? null,
     llmResponseJson: null,
     outputPngPaths: null,
     outputPngUrls: null,

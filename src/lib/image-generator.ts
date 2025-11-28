@@ -1,7 +1,7 @@
 // Instagramカルーセル自動生成アプリ - 画像生成
 
 import { createCanvas, loadImage, CanvasRenderingContext2D, Image, registerFont } from 'canvas';
-import { DesignNumber, TextPosition } from './types';
+import { DesignNumber, TextPosition, SlideManualOverride, PersonPosition } from './types';
 import { IMAGE_SIZE, DESIGN_THEMES } from './constants';
 import fs from 'fs';
 import path from 'path';
@@ -20,11 +20,6 @@ try {
 } catch (error) {
   console.error('❌ フォント登録エラー:', error);
 }
-
-/**
- * 人物の配置位置
- */
-type PersonPosition = 'left' | 'center' | 'right';
 
 type LayoutDecision = {
   personPosition: PersonPosition;
@@ -50,6 +45,7 @@ const TEXT_POSITION_SAFE_MAP: Record<PersonPosition, TextPosition[]> = {
 interface TextLayoutOptions {
   yOffset?: number;
   maxHeightRatio?: number;
+  fontScale?: number;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -137,18 +133,19 @@ function getPersonCoordinates(
   personHeight: number,
   canvasWidth: number,
   canvasHeight: number,
-  slideNumber: number = 1
+  slideNumber: number = 1,
+  override?: SlideManualOverride | null
 ): { x: number; y: number; scale: number } {
   // 人物を下部エリアに配置（上部はテキスト用）
   const personAreaHeight = canvasHeight * 0.65;
   const sizeMultiplier = slideNumber === 1 ? 0.9 : slideNumber === 2 ? 1.0 : 0.95;
-  const targetHeight = personAreaHeight * sizeMultiplier;
+  const targetHeight = personAreaHeight * sizeMultiplier * (override?.personScale ?? 1);
   const scale = targetHeight / personHeight;
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
   // 下部に配置（少しだけ上下に揺らす）
-  const verticalJitter = Math.floor(Math.random() * 20) - 10;
+  const verticalJitter = Math.floor(Math.random() * 20) - 10 + (override?.personOffsetY || 0);
   const y = canvasHeight - scaledHeight + 40 + verticalJitter;
   
   let x: number;
@@ -171,7 +168,7 @@ function getPersonCoordinates(
       break;
   }
   
-  const horizontalJitter = Math.floor(Math.random() * 40) - 20;
+  const horizontalJitter = Math.floor(Math.random() * 40) - 20 + (override?.personOffsetX || 0);
   const safeX = clamp(x + horizontalJitter, 40, canvasWidth - scaledWidth - 40);
   
   return { x: safeX, y, scale };
@@ -359,7 +356,8 @@ function drawTextWithShadow(
   
   // 全てのテキストを結合
   const fullText = lines.join('');
-  let fontSize = 180; // 初期サイズ
+  const baseFont = 180 * (layoutOptions.fontScale ?? 1);
+  let fontSize = clamp(baseFont, 110, 260);
   const maxWidth = canvasWidth - (padding * 2);
   const maxTextHeight = canvasHeight * (layoutOptions.maxHeightRatio || 0.35); // 写真に被らないように高さ制限
   
@@ -556,7 +554,8 @@ export async function generateSlideImage(
   slideNumber: 1 | 2 | 3,
   logoImage: string | null = null,
   customDesign: any = null,
-  photoAnalysis: any = null // Vision APIの分析結果
+  photoAnalysis: any = null, // Vision APIの分析結果
+  manualOverride: SlideManualOverride | null = null
 ): Promise<Buffer> {
   // フォント登録を確実に行う
   if (!fontRegistered) {
@@ -612,7 +611,20 @@ export async function generateSlideImage(
   const personImage = await loadImage(personBuffer);
   
   // 4. レイアウトを決定（Vision API + ランダムバリエーション）
-  const layoutDecision = determineSlideLayout(slideNumber as SlideNumber, photoAnalysis);
+  let layoutDecision = determineSlideLayout(slideNumber as SlideNumber, photoAnalysis);
+  if (manualOverride?.personPosition) {
+    layoutDecision = { ...layoutDecision, personPosition: manualOverride.personPosition };
+  }
+  if (manualOverride?.textPosition) {
+    layoutDecision = { ...layoutDecision, textPosition: manualOverride.textPosition };
+  }
+  if (typeof manualOverride?.textYOffset === 'number') {
+    layoutDecision = { ...layoutDecision, textYOffset: manualOverride.textYOffset };
+  }
+  if (typeof manualOverride?.textAreaRatio === 'number') {
+    layoutDecision = { ...layoutDecision, textAreaRatio: manualOverride.textAreaRatio };
+  }
+
   const personPosition = layoutDecision.personPosition;
   const personCoords = getPersonCoordinates(
     personPosition,
@@ -620,7 +632,8 @@ export async function generateSlideImage(
     personImage.height,
     IMAGE_SIZE.width,
     IMAGE_SIZE.height,
-    slideNumber // スライド番号を渡してバリエーションを出す
+    slideNumber,
+    manualOverride
   );
   
   const textPosition = layoutDecision.textPosition;
@@ -656,6 +669,7 @@ export async function generateSlideImage(
     {
       yOffset: layoutDecision.textYOffset,
       maxHeightRatio: layoutDecision.textAreaRatio,
+      fontScale: manualOverride?.fontScale,
     }
   );
   
@@ -730,13 +744,14 @@ export async function generateCarouselImages(
   designNumber: DesignNumber,
   logoImage: string | null = null,
   customDesign: any = null,
-  photoAnalyses: [any, any, any] | null = null // 各写真の分析結果
+  photoAnalyses: [any, any, any] | null = null, // 各写真の分析結果
+  manualOverrides: [SlideManualOverride | null, SlideManualOverride | null, SlideManualOverride | null] = [null, null, null]
 ): Promise<[Buffer, Buffer, Buffer]> {
   console.log('🖼️ カルーセル画像生成開始...');
   
-  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1, logoImage, customDesign, photoAnalyses?.[0]);
-  const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2, null, customDesign, photoAnalyses?.[1]);
-  const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3, null, customDesign, photoAnalyses?.[2]);
+  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1, logoImage, customDesign, photoAnalyses?.[0], manualOverrides[0]);
+  const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2, null, customDesign, photoAnalyses?.[1], manualOverrides[1]);
+  const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3, null, customDesign, photoAnalyses?.[2], manualOverrides[2]);
   
   console.log('🎉 カルーセル画像生成完了！');
   return [image1, image2, image3];
