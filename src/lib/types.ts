@@ -28,6 +28,8 @@ export interface SlideManualOverride {
   textYOffset?: number;
   textAreaRatio?: number;
   fontScale?: number;
+  textOffsetX?: number;
+  textOffsetY?: number;
 }
 
 /**

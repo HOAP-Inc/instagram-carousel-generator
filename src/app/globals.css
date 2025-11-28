@@ -326,6 +326,44 @@ body {
   transform: scale(1.02);
 }
 
+.drag-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.drag-handle {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: none;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.15s ease;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+
+.drag-handle-person {
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+}
+
+.drag-handle-text {
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+}
+
 /* ローディング */
 .loading-spinner {
   width: 40px;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { DesignNumber, PersonPosition, TextPosition } from '@/lib/types';
 
@@ -21,13 +21,30 @@ type DesignTweak = {
   textPosition: TextPositionOption;
   offsetX: number;
   offsetY: number;
+  textOffsetX: number;
+  textOffsetY: number;
 };
 
 const createDefaultTweaks = (): DesignTweak[] => ([
-  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0 },
-  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0 },
-  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0 },
+  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0, textOffsetX: 0, textOffsetY: 0 },
+  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0, textOffsetX: 0, textOffsetY: 0 },
+  { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0, textOffsetX: 0, textOffsetY: 0 },
 ]);
+
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const PERSON_OFFSET_X_LIMIT = 260;
+const PERSON_OFFSET_Y_LIMIT = 160;
+const TEXT_OFFSET_X_LIMIT = 220;
+const TEXT_OFFSET_Y_LIMIT = 160;
+type DragTarget = 'person' | 'text';
+type DragState = {
+  index: number;
+  target: DragTarget;
+  startX: number;
+  startY: number;
+  initialOffsetX: number;
+  initialOffsetY: number;
+};
 
 const SETTINGS_KEY = 'instagram-carousel-settings';
 
@@ -98,8 +115,63 @@ export default function Home() {
   const [notionSaveSuccess, setNotionSaveSuccess] = useState(false);
   
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
+  const dragStateRef = useRef<DragState | null>(null);
 
   const tupleFromText = (text: string): [string, string] => [text.trim(), ''];
+
+  const handlePointerMove = useCallback((event: PointerEvent) => {
+    const state = dragStateRef.current;
+    if (!state) return;
+    const deltaX = event.clientX - state.startX;
+    const deltaY = event.clientY - state.startY;
+    setDesignTweaks((prev) => {
+      const next = [...prev];
+      const current = next[state.index];
+      if (!current) return prev;
+      if (state.target === 'person') {
+        next[state.index] = {
+          ...current,
+          offsetX: clampValue(state.initialOffsetX + deltaX, -PERSON_OFFSET_X_LIMIT, PERSON_OFFSET_X_LIMIT),
+          offsetY: clampValue(state.initialOffsetY + deltaY, -PERSON_OFFSET_Y_LIMIT, PERSON_OFFSET_Y_LIMIT),
+        };
+      } else {
+        next[state.index] = {
+          ...current,
+          textOffsetX: clampValue(state.initialOffsetX + deltaX, -TEXT_OFFSET_X_LIMIT, TEXT_OFFSET_X_LIMIT),
+          textOffsetY: clampValue(state.initialOffsetY + deltaY, -TEXT_OFFSET_Y_LIMIT, TEXT_OFFSET_Y_LIMIT),
+        };
+      }
+      return next;
+    });
+  }, []);
+
+  const stopDragging = useCallback(() => {
+    dragStateRef.current = null;
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', stopDragging);
+  }, [handlePointerMove]);
+
+  const handlePointerDown = useCallback((index: number, target: DragTarget) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const tweak = designTweaks[index];
+    if (!tweak) return;
+    dragStateRef.current = {
+      index,
+      target,
+      startX: event.clientX,
+      startY: event.clientY,
+      initialOffsetX: target === 'person' ? tweak.offsetX : tweak.textOffsetX,
+      initialOffsetY: target === 'person' ? tweak.offsetY : tweak.textOffsetY,
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopDragging);
+  }, [designTweaks, handlePointerMove, stopDragging]);
+
+  useEffect(() => {
+    return () => {
+      stopDragging();
+    };
+  }, [stopDragging]);
 
   const handleSlideTextChange = (key: SlideKey, value: string) => {
     setEditableSlides((prev) => ({ ...prev, [key]: value }));
@@ -166,6 +238,8 @@ export default function Home() {
             textPosition: tweak.textPosition === 'auto' ? undefined : tweak.textPosition,
             personOffsetX: tweak.offsetX,
             personOffsetY: tweak.offsetY,
+            textOffsetX: tweak.textOffsetX,
+            textOffsetY: tweak.textOffsetY,
           })),
         }),
       });
@@ -666,20 +740,52 @@ export default function Home() {
             {/* 画像プレビュー */}
             <section className="card">
               <h3 className="font-semibold mb-4 text-[var(--text)]">カルーセル画像</h3>
+              <p className="text-xs text-[var(--text-light)] mb-3">
+                プレビュー上の丸いハンドル（青=人物 / ピンク=テキスト）をドラッグすると位置を直感的に調整できます。
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {result.images.map((url, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={url}
-                      alt={`Slide ${index + 1}`}
-                      className="preview-image w-full object-cover"
-                      style={{ aspectRatio: '1080 / 1350' }}
-                    />
-                    <span className="absolute top-2 left-2 badge">
-                      {index + 1}枚目
-                    </span>
-                  </div>
-                ))}
+                {result.images.map((url, index) => {
+                  const tweak = designTweaks[index];
+                  const personHandleStyle = {
+                    left: `calc(50% + ${(tweak?.offsetX ?? 0)}px)`,
+                    top: `calc(76% + ${(tweak?.offsetY ?? 0)}px)`,
+                  };
+                  const textHandleStyle = {
+                    left: `calc(50% + ${(tweak?.textOffsetX ?? 0)}px)`,
+                    top: `calc(22% + ${(tweak?.textOffsetY ?? 0)}px)`,
+                  };
+                  return (
+                    <div key={index} className="relative">
+                      <img
+                        src={url}
+                        alt={`Slide ${index + 1}`}
+                        className="preview-image w-full object-cover"
+                        style={{ aspectRatio: '1080 / 1350' }}
+                      />
+                      <span className="absolute top-2 left-2 badge">
+                        {index + 1}枚目
+                      </span>
+                      <div className="drag-overlay">
+                        <button
+                          type="button"
+                          className="drag-handle drag-handle-person"
+                          style={personHandleStyle}
+                          onPointerDown={handlePointerDown(index, 'person')}
+                        >
+                          人
+                        </button>
+                        <button
+                          type="button"
+                          className="drag-handle drag-handle-text"
+                          style={textHandleStyle}
+                          onPointerDown={handlePointerDown(index, 'text')}
+                        >
+                          文
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 

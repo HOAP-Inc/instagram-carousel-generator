@@ -46,6 +46,8 @@ interface TextLayoutOptions {
   yOffset?: number;
   maxHeightRatio?: number;
   fontScale?: number;
+  textOffsetX?: number;
+  textOffsetY?: number;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -350,6 +352,8 @@ function drawTextWithShadow(
     padding,
     layoutOptions.yOffset || 0
   );
+  const textOffsetX = clamp(layoutOptions.textOffsetX ?? 0, -320, 320);
+  const textOffsetY = clamp(layoutOptions.textOffsetY ?? 0, -200, 200);
   
   ctx.textAlign = coords.align;
   ctx.textBaseline = coords.baseline;
@@ -405,22 +409,28 @@ function drawTextWithShadow(
   
   // 各行を描画
   wrappedLines.forEach((line, index) => {
-    const y = coords.y + (index * lineHeight);
+    let lineY = coords.y + textOffsetY + (index * lineHeight);
+    if (coords.baseline === 'bottom') {
+      lineY = coords.y + textOffsetY - ((wrappedLines.length - 1 - index) * lineHeight);
+    } else if (coords.baseline === 'middle') {
+      lineY = coords.y + textOffsetY + (index * lineHeight) - (wrappedLines.length - 1) * lineHeight / 2;
+    }
+    const lineX = coords.x + textOffsetX;
     
     // 黒い縁取り
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = Math.max(15, fontSize * 0.12);
     ctx.lineJoin = 'round';
-    ctx.strokeText(line, coords.x, y);
+    ctx.strokeText(line, lineX, lineY);
     
     // 白い縁取り
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = Math.max(8, fontSize * 0.06);
-    ctx.strokeText(line, coords.x, y);
+    ctx.strokeText(line, lineX, lineY);
     
     // 本文
     ctx.fillStyle = textColor;
-    ctx.fillText(line, coords.x, y);
+    ctx.fillText(line, lineX, lineY);
   });
 }
 
@@ -670,6 +680,8 @@ export async function generateSlideImage(
       yOffset: layoutDecision.textYOffset,
       maxHeightRatio: layoutDecision.textAreaRatio,
       fontScale: manualOverride?.fontScale,
+      textOffsetX: manualOverride?.textOffsetX,
+      textOffsetY: manualOverride?.textOffsetY,
     }
   );
   

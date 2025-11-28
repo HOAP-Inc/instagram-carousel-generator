@@ -37,6 +37,12 @@ function normalizeOverride(raw?: SlideManualOverride | null): SlideManualOverrid
   if (typeof raw.textAreaRatio === 'number' && !Number.isNaN(raw.textAreaRatio)) {
     normalized.textAreaRatio = raw.textAreaRatio;
   }
+  if (typeof raw.textOffsetX === 'number' && !Number.isNaN(raw.textOffsetX)) {
+    normalized.textOffsetX = raw.textOffsetX;
+  }
+  if (typeof raw.textOffsetY === 'number' && !Number.isNaN(raw.textOffsetY)) {
+    normalized.textOffsetY = raw.textOffsetY;
+  }
 
   return Object.keys(normalized).length > 0 ? normalized : null;
 }
