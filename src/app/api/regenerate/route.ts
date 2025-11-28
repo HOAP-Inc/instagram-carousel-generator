@@ -61,8 +61,12 @@ export async function POST(request: NextRequest) {
 
     const job = getJob(jobId);
     if (!job) {
+      console.error(`❌ ジョブが見つかりません: ${jobId}`);
       return NextResponse.json(
-        { success: false, error: '該当するジョブが見つかりません' },
+        { 
+          success: false, 
+          error: '該当するジョブが見つかりません。サーバーが再起動された可能性があります。最初から生成し直してください。' 
+        },
         { status: 404 }
       );
     }

@@ -44,6 +44,8 @@ type DragState = {
   startY: number;
   initialOffsetX: number;
   initialOffsetY: number;
+  scaleX: number;
+  scaleY: number;
 };
 
 const SETTINGS_KEY = 'instagram-carousel-settings';
@@ -122,8 +124,19 @@ export default function Home() {
   const handlePointerMove = useCallback((event: PointerEvent) => {
     const state = dragStateRef.current;
     if (!state) return;
-    const deltaX = event.clientX - state.startX;
-    const deltaY = event.clientY - state.startY;
+    
+    // プレビュー画像のサイズでの移動量を計算
+    const deltaXPreview = event.clientX - state.startX;
+    const deltaYPreview = event.clientY - state.startY;
+    
+    // 実際の画像サイズにスケーリング
+    const deltaX = deltaXPreview * state.scaleX;
+    const deltaY = deltaYPreview * state.scaleY;
+    
+    // 初期オフセット（プレビューサイズ）を実際の画像サイズに変換
+    const initialOffsetXActual = state.initialOffsetX * state.scaleX;
+    const initialOffsetYActual = state.initialOffsetY * state.scaleY;
+    
     setDesignTweaks((prev) => {
       const next = [...prev];
       const current = next[state.index];
@@ -131,14 +144,14 @@ export default function Home() {
       if (state.target === 'person') {
         next[state.index] = {
           ...current,
-          offsetX: clampValue(state.initialOffsetX + deltaX, -PERSON_OFFSET_X_LIMIT, PERSON_OFFSET_X_LIMIT),
-          offsetY: clampValue(state.initialOffsetY + deltaY, -PERSON_OFFSET_Y_LIMIT, PERSON_OFFSET_Y_LIMIT),
+          offsetX: clampValue(initialOffsetXActual + deltaX, -PERSON_OFFSET_X_LIMIT, PERSON_OFFSET_X_LIMIT),
+          offsetY: clampValue(initialOffsetYActual + deltaY, -PERSON_OFFSET_Y_LIMIT, PERSON_OFFSET_Y_LIMIT),
         };
       } else {
         next[state.index] = {
           ...current,
-          textOffsetX: clampValue(state.initialOffsetX + deltaX, -TEXT_OFFSET_X_LIMIT, TEXT_OFFSET_X_LIMIT),
-          textOffsetY: clampValue(state.initialOffsetY + deltaY, -TEXT_OFFSET_Y_LIMIT, TEXT_OFFSET_Y_LIMIT),
+          textOffsetX: clampValue(initialOffsetXActual + deltaX, -TEXT_OFFSET_X_LIMIT, TEXT_OFFSET_X_LIMIT),
+          textOffsetY: clampValue(initialOffsetYActual + deltaY, -TEXT_OFFSET_Y_LIMIT, TEXT_OFFSET_Y_LIMIT),
         };
       }
       return next;
@@ -153,15 +166,37 @@ export default function Home() {
 
   const handlePointerDown = useCallback((index: number, target: DragTarget) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     const tweak = designTweaks[index];
     if (!tweak) return;
+    
+    // プレビュー画像の要素を取得してスケールを計算
+    const previewImages = document.querySelectorAll('.preview-image');
+    const previewImg = previewImages[index] as HTMLImageElement;
+    if (!previewImg) {
+      console.warn('プレビュー画像が見つかりません');
+      return;
+    }
+    
+    const rect = previewImg.getBoundingClientRect();
+    const scaleX = 1080 / rect.width; // 実際の画像幅 / プレビュー幅
+    const scaleY = 1350 / rect.height; // 実際の画像高さ / プレビュー高さ
+    
+    // 現在のオフセットをプレビューサイズに変換
+    const currentOffsetX = target === 'person' ? tweak.offsetX : tweak.textOffsetX;
+    const currentOffsetY = target === 'person' ? tweak.offsetY : tweak.textOffsetY;
+    const previewOffsetX = currentOffsetX / scaleX;
+    const previewOffsetY = currentOffsetY / scaleY;
+    
     dragStateRef.current = {
       index,
       target,
       startX: event.clientX,
       startY: event.clientY,
-      initialOffsetX: target === 'person' ? tweak.offsetX : tweak.textOffsetX,
-      initialOffsetY: target === 'person' ? tweak.offsetY : tweak.textOffsetY,
+      initialOffsetX: previewOffsetX,
+      initialOffsetY: previewOffsetY,
+      scaleX,
+      scaleY,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', stopDragging);
@@ -216,35 +251,44 @@ export default function Home() {
       setError('ジョブ情報がないため再描画できません。最初から生成してください。');
       return;
     }
+    
+    console.log('🔄 再描画開始:', { jobId, designTweaks });
+    
     setIsRegenerating(true);
     setError(null);
     setRegenMessage(null);
     
     try {
+      const requestBody = {
+        jobId,
+        slides: {
+          slide1: editableSlides.slide1,
+          slide2: editableSlides.slide2,
+          slide3: editableSlides.slide3,
+        },
+        caption: editableSlides.caption,
+        overrides: designTweaks.map((tweak) => ({
+          fontScale: tweak.fontScale,
+          personPosition: tweak.personPosition === 'auto' ? undefined : tweak.personPosition,
+          textPosition: tweak.textPosition === 'auto' ? undefined : tweak.textPosition,
+          personOffsetX: tweak.offsetX,
+          personOffsetY: tweak.offsetY,
+          textOffsetX: tweak.textOffsetX,
+          textOffsetY: tweak.textOffsetY,
+        })),
+      };
+      
+      console.log('📤 再描画リクエスト:', requestBody);
+      
       const response = await fetch('/api/regenerate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId,
-          slides: {
-            slide1: editableSlides.slide1,
-            slide2: editableSlides.slide2,
-            slide3: editableSlides.slide3,
-          },
-          caption: editableSlides.caption,
-          overrides: designTweaks.map((tweak) => ({
-            fontScale: tweak.fontScale,
-            personPosition: tweak.personPosition === 'auto' ? undefined : tweak.personPosition,
-            textPosition: tweak.textPosition === 'auto' ? undefined : tweak.textPosition,
-            personOffsetX: tweak.offsetX,
-            personOffsetY: tweak.offsetY,
-            textOffsetX: tweak.textOffsetX,
-            textOffsetY: tweak.textOffsetY,
-          })),
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       const data = await response.json();
+      console.log('📥 再描画レスポンス:', data);
+      
       if (!data.success) {
         setError(data.error || '画像の再描画に失敗しました');
         return;
@@ -746,13 +790,22 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {result.images.map((url, index) => {
                   const tweak = designTweaks[index];
+                  // ハンドルの位置はプレビュー画像のサイズで計算（スケーリングはドラッグ時に適用）
+                  // デフォルトではオフセット0で表示し、ドラッグ時にスケーリングを適用
+                  const personOffsetX = (tweak?.offsetX ?? 0);
+                  const personOffsetY = (tweak?.offsetY ?? 0);
+                  const textOffsetX = (tweak?.textOffsetX ?? 0);
+                  const textOffsetY = (tweak?.textOffsetY ?? 0);
+                  
+                  // プレビュー画像のサイズを取得（デフォルトでは1:1で表示）
+                  // 実際のスケーリングはドラッグ時に計算される
                   const personHandleStyle = {
-                    left: `calc(50% + ${(tweak?.offsetX ?? 0)}px)`,
-                    top: `calc(76% + ${(tweak?.offsetY ?? 0)}px)`,
+                    left: `calc(50% + ${personOffsetX}px)`,
+                    top: `calc(76% + ${personOffsetY}px)`,
                   };
                   const textHandleStyle = {
-                    left: `calc(50% + ${(tweak?.textOffsetX ?? 0)}px)`,
-                    top: `calc(22% + ${(tweak?.textOffsetY ?? 0)}px)`,
+                    left: `calc(50% + ${textOffsetX}px)`,
+                    top: `calc(22% + ${textOffsetY}px)`,
                   };
                   return (
                     <div key={index} className="relative">
@@ -771,6 +824,7 @@ export default function Home() {
                           className="drag-handle drag-handle-person"
                           style={personHandleStyle}
                           onPointerDown={handlePointerDown(index, 'person')}
+                          title={`人物位置: X=${personOffsetX.toFixed(0)}px, Y=${personOffsetY.toFixed(0)}px (ドラッグで調整)`}
                         >
                           人
                         </button>
@@ -779,6 +833,7 @@ export default function Home() {
                           className="drag-handle drag-handle-text"
                           style={textHandleStyle}
                           onPointerDown={handlePointerDown(index, 'text')}
+                          title={`テキスト位置: X=${textOffsetX.toFixed(0)}px, Y=${textOffsetY.toFixed(0)}px (ドラッグで調整)`}
                         >
                           文
                         </button>
