@@ -62,30 +62,15 @@ function getPersonCoordinates(
   canvasHeight: number,
   slideNumber: number = 1
 ): { x: number; y: number; scale: number } {
-  // スライド番号に応じてサイズを変化させる（バリエーション）
-  let sizeVariation: number;
-  switch (slideNumber) {
-    case 1:
-      sizeVariation = 0.80; // 1枚目: 80%
-      break;
-    case 2:
-      sizeVariation = 0.85; // 2枚目: 85%
-      break;
-    case 3:
-      sizeVariation = 0.82; // 3枚目: 82%
-      break;
-    default:
-      sizeVariation = 0.85;
-  }
-  
-  const targetHeight = canvasHeight * sizeVariation;
+  // 人物を下部60%のエリアに配置（上部40%はテキスト用）
+  const personAreaHeight = canvasHeight * 0.65;
+  const targetHeight = personAreaHeight * 0.95; // エリアの95%
   const scale = targetHeight / personHeight;
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
-  // 下部に配置（スライドごとに微妙に変える）
-  const yOffset = slideNumber === 1 ? 10 : slideNumber === 2 ? 20 : 15;
-  const y = canvasHeight - scaledHeight + yOffset;
+  // 下部に配置（少しはみ出させる）
+  const y = canvasHeight - scaledHeight + 30;
   
   let x: number;
   switch (position) {
@@ -102,7 +87,7 @@ function getPersonCoordinates(
     case 'center':
     default:
       // 中央配置（スライドごとに微妙にずらす）
-      const centerOffset = slideNumber === 1 ? 0 : slideNumber === 2 ? -20 : 10;
+      const centerOffset = slideNumber === 1 ? 0 : slideNumber === 2 ? -30 : 20;
       x = (canvasWidth - scaledWidth) / 2 + centerOffset;
       break;
   }
@@ -111,47 +96,76 @@ function getPersonCoordinates(
 }
 
 /**
- * テキスト位置の座標を計算（超大きく目立つように）
+ * テキスト位置の座標を計算（写真に被らない上部のみ）
  */
 function getTextCoordinates(
   position: TextPosition,
   canvasWidth: number,
   canvasHeight: number,
-  padding: number = 70
+  padding: number = 80
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
+  // 全て上部に配置（写真に被らないように）
+  const topY = padding + 60;
+  
   switch (position) {
     case 'top-left':
-      // 左上（超大きく表示）
-      return { x: padding, y: padding + 50, align: 'left', baseline: 'top' };
+      return { x: padding, y: topY, align: 'left', baseline: 'top' };
     case 'top-right':
-      // 右上（超大きく表示）
-      return { x: canvasWidth - padding, y: padding + 50, align: 'right', baseline: 'top' };
-    case 'bottom-left':
-      // 左下（人物の上に超大きく）
-      return { x: padding, y: canvasHeight * 0.28, align: 'left', baseline: 'top' };
-    case 'bottom-right':
-      // 右下（人物の上に超大きく）
-      return { x: canvasWidth - padding, y: canvasHeight * 0.28, align: 'right', baseline: 'top' };
+      return { x: canvasWidth - padding, y: topY, align: 'right', baseline: 'top' };
     case 'center':
     default:
-      // 中央上部に超超大きく配置
-      return { x: canvasWidth / 2, y: padding + 50, align: 'center', baseline: 'top' };
+      return { x: canvasWidth / 2, y: topY, align: 'center', baseline: 'top' };
+    case 'bottom-left':
+    case 'bottom-right':
+      // 下部は使わない（写真に被るため）
+      return { x: canvasWidth / 2, y: topY, align: 'center', baseline: 'top' };
   }
 }
 
 /**
- * テキストサイズを固定で超大きく（縮小を最小限に）
+ * テキストを自動改行（指定幅に収まるように）
  */
-function calculateFontSize(text: string, minSize: number = 200, maxSize: number = 350): number {
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split('');
+  const wrappedLines: string[] = [];
+  let currentLine = '';
+  
+  for (const char of words) {
+    const testLine = currentLine + char;
+    const metrics = ctx.measureText(testLine);
+    
+    if (metrics.width > maxWidth && currentLine.length > 0) {
+      wrappedLines.push(currentLine);
+      currentLine = char;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  
+  if (currentLine.length > 0) {
+    wrappedLines.push(currentLine);
+  }
+  
+  return wrappedLines;
+}
+
+/**
+ * テキストサイズを計算（全ての文字が入るように）
+ */
+function calculateFontSize(text: string, minSize: number = 120, maxSize: number = 250): number {
   const charCount = text.length;
   
-  // 基本的に超大きいサイズを返す（文字数による縮小を最小限に）
-  if (charCount <= 10) return maxSize; // 350px
-  if (charCount <= 20) return 320;
-  if (charCount <= 30) return 280;
-  if (charCount <= 40) return 250;
-  if (charCount <= 60) return 220;
-  return minSize; // 200px（最小でも200px）
+  // 文字数に応じてサイズを決定
+  if (charCount <= 15) return maxSize; // 250px
+  if (charCount <= 25) return 220;
+  if (charCount <= 35) return 190;
+  if (charCount <= 50) return 160;
+  if (charCount <= 70) return 140;
+  return minSize; // 120px
 }
 
 /**
@@ -250,7 +264,7 @@ function drawBackgroundPattern(
 }
 
 /**
- * テキストを描画（枠からはみ出さないように）
+ * テキストを自動改行して描画（全ての文字を表示）
  */
 function drawTextWithShadow(
   ctx: CanvasRenderingContext2D,
@@ -262,128 +276,77 @@ function drawTextWithShadow(
 ) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const padding = 60; // 余白を減らして文字を大きく表示
+  const padding = 80;
   
   const coords = getTextCoordinates(position, canvasWidth, canvasHeight, padding);
   
   ctx.textAlign = coords.align;
   ctx.textBaseline = coords.baseline;
   
+  // 全てのテキストを結合
   const fullText = lines.join('');
-  let fontSize = calculateFontSize(fullText);
-  let lineHeight = fontSize * 1.4; // 行間を少し詰める
-  
-  // フォントファミリーを決定（デフォルトはNotoSansJP）
-  const fontFamily = customFontFamily || 'NotoSansJP';
-  let fontString = '';
-  
-  switch (fontFamily) {
-    case 'HiraginoMaruGothic':
-      fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "NotoSansJP", "Rounded Mplus 1c", sans-serif`;
-      break;
-    case 'YuGothic':
-      fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", "NotoSansJP", sans-serif`;
-      break;
-    case 'MPlus1p':
-      fontString = `bold ${fontSize}px "M PLUS 1p", "NotoSansJP", sans-serif`;
-      break;
-    case 'NotoSansJP':
-    default:
-      // NotoSansJPを明示的に指定（フォールバックも含む）
-      fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
-      break;
-  }
-  
-  ctx.font = fontString;
-  console.log(`📝 フォント設定: ${fontString}`);
-  
-  // 各行の幅を計算して、枠からはみ出す場合は確実に縮小
+  let fontSize = 180; // 初期サイズ
   const maxWidth = canvasWidth - (padding * 2);
-  let finalFontSize = fontSize;
+  const maxTextHeight = canvasHeight * 0.35; // テキストエリアは上部35%まで（写真に被らない）
   
-  // 全ての行をチェックして、最も縮小が必要なサイズを計算
-  for (const line of lines) {
-    if (!line) continue;
-    ctx.font = `bold ${finalFontSize}px "NotoSansJP", sans-serif`;
-    const metrics = ctx.measureText(line);
-    
-    if (metrics.width > maxWidth) {
-      // この行に必要なフォントサイズを計算
-      const ratio = maxWidth / metrics.width;
-      const requiredSize = Math.floor(finalFontSize * ratio * 0.95); // 5%の余裕
-      finalFontSize = Math.min(finalFontSize, requiredSize);
-    }
-  }
+  // フォントファミリーを決定
+  const fontFamily = customFontFamily || 'NotoSansJP';
+  let fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", sans-serif`;
+  ctx.font = fontString;
   
-  // 最小フォントサイズを保証（ただし、はみ出す場合はそれ以下も許容）
-  if (finalFontSize < fontSize) {
-    fontSize = Math.max(finalFontSize, 120); // 最小120px
-    lineHeight = fontSize * 1.4;
-    // フォントを再設定
-    switch (fontFamily) {
-      case 'HiraginoMaruGothic':
-        fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "NotoSansJP", "Rounded Mplus 1c", sans-serif`;
-        break;
-      case 'YuGothic':
-        fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", "NotoSansJP", sans-serif`;
-        break;
-      case 'MPlus1p':
-        fontString = `bold ${fontSize}px "M PLUS 1p", "NotoSansJP", sans-serif`;
-        break;
-      case 'NotoSansJP':
-      default:
-        fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
-        break;
-    }
+  // 自動改行してテキストを分割
+  let wrappedLines = wrapText(ctx, fullText, maxWidth);
+  let lineHeight = fontSize * 1.3;
+  let totalHeight = wrappedLines.length * lineHeight;
+  
+  // テキストが高さ制限を超える場合、フォントサイズを縮小
+  while (totalHeight > maxTextHeight && fontSize > 100) {
+    fontSize -= 10;
+    fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", sans-serif`;
     ctx.font = fontString;
-    console.log(`📝 フォント再設定（リサイズ後）: ${fontString}`);
+    wrappedLines = wrapText(ctx, fullText, maxWidth);
+    lineHeight = fontSize * 1.3;
+    totalHeight = wrappedLines.length * lineHeight;
   }
   
-  lines.forEach((line, index) => {
-    if (!line) return;
-    
-    // テキストのY座標を計算（baseline考慮）
-    let y: number;
-    if (coords.baseline === 'top') {
-      y = coords.y + (index * lineHeight);
-    } else if (coords.baseline === 'bottom') {
-      y = coords.y - ((lines.length - 1 - index) * lineHeight);
-    } else {
-      // middle
-      y = coords.y + (index * lineHeight) - (lines.length - 1) * lineHeight / 2;
+  console.log(`📝 フォント: ${fontSize}px, 行数: ${wrappedLines.length}`);
+  
+  // テキストカラーを決定
+  let textColor: string;
+  if (customTextColor) {
+    textColor = customTextColor;
+  } else {
+    switch (designNumber) {
+      case 1:
+        textColor = '#FF1493';
+        break;
+      case 2:
+        textColor = '#4169E1';
+        break;
+      case 3:
+        textColor = '#FF8C00';
+        break;
+      default:
+        textColor = '#FF1493';
     }
+  }
+  
+  // 各行を描画
+  wrappedLines.forEach((line, index) => {
+    const y = coords.y + (index * lineHeight);
     
-    // 黒い縁取り（超太く）
+    // 黒い縁取り
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(18, fontSize * 0.15);
+    ctx.lineWidth = Math.max(15, fontSize * 0.12);
     ctx.lineJoin = 'round';
     ctx.strokeText(line, coords.x, y);
     
-    // 白い縁取り（太く）
+    // 白い縁取り
     ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = Math.max(10, fontSize * 0.08);
+    ctx.lineWidth = Math.max(8, fontSize * 0.06);
     ctx.strokeText(line, coords.x, y);
     
-    // 本文（カスタムカラーまたはデザイン別カラー）
-    let textColor: string;
-    if (customTextColor) {
-      textColor = customTextColor;
-    } else {
-      switch (designNumber) {
-        case 1:
-          textColor = '#FF1493';
-          break;
-        case 2:
-          textColor = '#4169E1';
-          break;
-        case 3:
-          textColor = '#FF8C00';
-          break;
-        default:
-          textColor = '#FF1493';
-      }
-    }
-    
+    // 本文
     ctx.fillStyle = textColor;
     ctx.fillText(line, coords.x, y);
   });
