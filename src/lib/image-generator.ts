@@ -61,24 +61,24 @@ function getPersonCoordinates(
   canvasWidth: number,
   canvasHeight: number
 ): { x: number; y: number; scale: number } {
-  // 人物を超大きく表示（70-90%の高さ）
-  const targetHeight = canvasHeight * (0.75 + Math.random() * 0.15);
+  // 人物を固定で超大きく表示（85%の高さ）
+  const targetHeight = canvasHeight * 0.85;
   const scale = targetHeight / personHeight;
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
-  // 下部に配置（ほぼ画面いっぱい）
-  const y = canvasHeight - scaledHeight;
+  // 下部に配置（画面いっぱい）
+  const y = canvasHeight - scaledHeight + 20; // 少しだけ下にはみ出す
   
   let x: number;
   switch (position) {
     case 'left':
-      // 左寄せ
-      x = canvasWidth * 0.02;
+      // 左寄せ（少し中央寄り）
+      x = canvasWidth * 0.08;
       break;
     case 'right':
-      // 右寄せ
-      x = canvasWidth * 0.98 - scaledWidth;
+      // 右寄せ（少し中央寄り）
+      x = canvasWidth * 0.92 - scaledWidth;
       break;
     case 'center':
     default:
@@ -91,47 +91,47 @@ function getPersonCoordinates(
 }
 
 /**
- * テキスト位置の座標を計算（大きく目立つように）
+ * テキスト位置の座標を計算（超大きく目立つように）
  */
 function getTextCoordinates(
   position: TextPosition,
   canvasWidth: number,
   canvasHeight: number,
-  padding: number = 80
+  padding: number = 60
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
   switch (position) {
     case 'top-left':
-      // 左上（大きく表示）
-      return { x: padding, y: padding + 60, align: 'left', baseline: 'top' };
+      // 左上（超大きく表示）
+      return { x: padding, y: padding + 40, align: 'left', baseline: 'top' };
     case 'top-right':
-      // 右上（大きく表示）
-      return { x: canvasWidth - padding, y: padding + 60, align: 'right', baseline: 'top' };
+      // 右上（超大きく表示）
+      return { x: canvasWidth - padding, y: padding + 40, align: 'right', baseline: 'top' };
     case 'bottom-left':
-      // 左下（人物の上に大きく）
-      return { x: padding, y: canvasHeight * 0.35, align: 'left', baseline: 'top' };
+      // 左下（人物の上に超大きく）
+      return { x: padding, y: canvasHeight * 0.25, align: 'left', baseline: 'top' };
     case 'bottom-right':
-      // 右下（人物の上に大きく）
-      return { x: canvasWidth - padding, y: canvasHeight * 0.35, align: 'right', baseline: 'top' };
+      // 右下（人物の上に超大きく）
+      return { x: canvasWidth - padding, y: canvasHeight * 0.25, align: 'right', baseline: 'top' };
     case 'center':
     default:
-      // 中央上部に超大きく配置
-      return { x: canvasWidth / 2, y: padding + 60, align: 'center', baseline: 'top' };
+      // 中央上部に超超大きく配置
+      return { x: canvasWidth / 2, y: padding + 40, align: 'center', baseline: 'top' };
   }
 }
 
 /**
- * テキストサイズを自動調整（超超大きく、迫力のあるサイズ）
+ * テキストサイズを固定で超大きく（縮小を最小限に）
  */
-function calculateFontSize(text: string, minSize: number = 160, maxSize: number = 280): number {
+function calculateFontSize(text: string, minSize: number = 200, maxSize: number = 350): number {
   const charCount = text.length;
   
-  // 文字数が少ないほど超超大きく
-  if (charCount <= 15) return maxSize; // 280px
-  if (charCount <= 25) return 240;
-  if (charCount <= 35) return 210;
-  if (charCount <= 50) return 180;
-  if (charCount <= 70) return 165;
-  return minSize; // 160px
+  // 基本的に超大きいサイズを返す（文字数による縮小を最小限に）
+  if (charCount <= 10) return maxSize; // 350px
+  if (charCount <= 20) return 320;
+  if (charCount <= 30) return 280;
+  if (charCount <= 40) return 250;
+  if (charCount <= 60) return 220;
+  return minSize; // 200px（最小でも200px）
 }
 
 /**
@@ -242,7 +242,7 @@ function drawTextWithShadow(
 ) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const padding = 100; // 余白を大きく
+  const padding = 60; // 余白を減らして文字を大きく表示
   
   const coords = getTextCoordinates(position, canvasWidth, canvasHeight, padding);
   
@@ -251,7 +251,7 @@ function drawTextWithShadow(
   
   const fullText = lines.join('');
   let fontSize = calculateFontSize(fullText);
-  let lineHeight = fontSize * 1.5;
+  let lineHeight = fontSize * 1.4; // 行間を少し詰める
   
   // フォントファミリーを決定（デフォルトはNotoSansJP）
   const fontFamily = customFontFamily || 'NotoSansJP';
@@ -277,23 +277,26 @@ function drawTextWithShadow(
   ctx.font = fontString;
   console.log(`📝 フォント設定: ${fontString}`);
   
-  // 各行の幅を計算して、枠からはみ出す場合はフォントサイズを縮小
+  // 各行の幅を計算して、枠からはみ出す場合のみ最小限の縮小
   const maxWidth = canvasWidth - (padding * 2);
   let needsResize = false;
+  let minFontSize = fontSize; // 最小フォントサイズを保持
   
   for (const line of lines) {
     if (!line) continue;
     const metrics = ctx.measureText(line);
     if (metrics.width > maxWidth) {
       needsResize = true;
-      // フォントサイズを調整
+      // フォントサイズを調整（最小限の縮小）
       const ratio = maxWidth / metrics.width;
-      fontSize = Math.floor(fontSize * ratio * 0.95); // 5%の余裕を持たせる
+      const adjustedSize = Math.floor(fontSize * ratio * 0.98); // 2%の余裕（縮小を最小限に）
+      minFontSize = Math.min(minFontSize, adjustedSize);
     }
   }
   
   if (needsResize) {
-    lineHeight = fontSize * 1.5;
+    fontSize = Math.max(minFontSize, 150); // 最小でも150pxを保証
+    lineHeight = fontSize * 1.4;
     // フォントを再設定
     switch (fontFamily) {
       case 'HiraginoMaruGothic':
