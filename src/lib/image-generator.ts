@@ -59,31 +59,51 @@ function getPersonCoordinates(
   personWidth: number,
   personHeight: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  slideNumber: number = 1
 ): { x: number; y: number; scale: number } {
-  // 人物を固定で超大きく表示（85%の高さ）
-  const targetHeight = canvasHeight * 0.85;
+  // スライド番号に応じてサイズを変化させる（バリエーション）
+  let sizeVariation: number;
+  switch (slideNumber) {
+    case 1:
+      sizeVariation = 0.80; // 1枚目: 80%
+      break;
+    case 2:
+      sizeVariation = 0.85; // 2枚目: 85%
+      break;
+    case 3:
+      sizeVariation = 0.82; // 3枚目: 82%
+      break;
+    default:
+      sizeVariation = 0.85;
+  }
+  
+  const targetHeight = canvasHeight * sizeVariation;
   const scale = targetHeight / personHeight;
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
-  // 下部に配置（画面いっぱい）
-  const y = canvasHeight - scaledHeight + 20; // 少しだけ下にはみ出す
+  // 下部に配置（スライドごとに微妙に変える）
+  const yOffset = slideNumber === 1 ? 10 : slideNumber === 2 ? 20 : 15;
+  const y = canvasHeight - scaledHeight + yOffset;
   
   let x: number;
   switch (position) {
     case 'left':
-      // 左寄せ（少し中央寄り）
-      x = canvasWidth * 0.08;
+      // 左寄せ（スライドごとに位置を変える）
+      const leftOffset = slideNumber === 1 ? 0.05 : slideNumber === 2 ? 0.08 : 0.06;
+      x = canvasWidth * leftOffset;
       break;
     case 'right':
-      // 右寄せ（少し中央寄り）
-      x = canvasWidth * 0.92 - scaledWidth;
+      // 右寄せ（スライドごとに位置を変える）
+      const rightOffset = slideNumber === 1 ? 0.95 : slideNumber === 2 ? 0.92 : 0.94;
+      x = canvasWidth * rightOffset - scaledWidth;
       break;
     case 'center':
     default:
-      // 中央配置
-      x = (canvasWidth - scaledWidth) / 2;
+      // 中央配置（スライドごとに微妙にずらす）
+      const centerOffset = slideNumber === 1 ? 0 : slideNumber === 2 ? -20 : 10;
+      x = (canvasWidth - scaledWidth) / 2 + centerOffset;
       break;
   }
   
@@ -97,25 +117,25 @@ function getTextCoordinates(
   position: TextPosition,
   canvasWidth: number,
   canvasHeight: number,
-  padding: number = 60
+  padding: number = 70
 ): { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline } {
   switch (position) {
     case 'top-left':
       // 左上（超大きく表示）
-      return { x: padding, y: padding + 40, align: 'left', baseline: 'top' };
+      return { x: padding, y: padding + 50, align: 'left', baseline: 'top' };
     case 'top-right':
       // 右上（超大きく表示）
-      return { x: canvasWidth - padding, y: padding + 40, align: 'right', baseline: 'top' };
+      return { x: canvasWidth - padding, y: padding + 50, align: 'right', baseline: 'top' };
     case 'bottom-left':
       // 左下（人物の上に超大きく）
-      return { x: padding, y: canvasHeight * 0.25, align: 'left', baseline: 'top' };
+      return { x: padding, y: canvasHeight * 0.28, align: 'left', baseline: 'top' };
     case 'bottom-right':
       // 右下（人物の上に超大きく）
-      return { x: canvasWidth - padding, y: canvasHeight * 0.25, align: 'right', baseline: 'top' };
+      return { x: canvasWidth - padding, y: canvasHeight * 0.28, align: 'right', baseline: 'top' };
     case 'center':
     default:
       // 中央上部に超超大きく配置
-      return { x: canvasWidth / 2, y: padding + 40, align: 'center', baseline: 'top' };
+      return { x: canvasWidth / 2, y: padding + 50, align: 'center', baseline: 'top' };
   }
 }
 
@@ -277,25 +297,27 @@ function drawTextWithShadow(
   ctx.font = fontString;
   console.log(`📝 フォント設定: ${fontString}`);
   
-  // 各行の幅を計算して、枠からはみ出す場合のみ最小限の縮小
+  // 各行の幅を計算して、枠からはみ出す場合は確実に縮小
   const maxWidth = canvasWidth - (padding * 2);
-  let needsResize = false;
-  let minFontSize = fontSize; // 最小フォントサイズを保持
+  let finalFontSize = fontSize;
   
+  // 全ての行をチェックして、最も縮小が必要なサイズを計算
   for (const line of lines) {
     if (!line) continue;
+    ctx.font = `bold ${finalFontSize}px "NotoSansJP", sans-serif`;
     const metrics = ctx.measureText(line);
+    
     if (metrics.width > maxWidth) {
-      needsResize = true;
-      // フォントサイズを調整（最小限の縮小）
+      // この行に必要なフォントサイズを計算
       const ratio = maxWidth / metrics.width;
-      const adjustedSize = Math.floor(fontSize * ratio * 0.98); // 2%の余裕（縮小を最小限に）
-      minFontSize = Math.min(minFontSize, adjustedSize);
+      const requiredSize = Math.floor(finalFontSize * ratio * 0.95); // 5%の余裕
+      finalFontSize = Math.min(finalFontSize, requiredSize);
     }
   }
   
-  if (needsResize) {
-    fontSize = Math.max(minFontSize, 150); // 最小でも150pxを保証
+  // 最小フォントサイズを保証（ただし、はみ出す場合はそれ以下も許容）
+  if (finalFontSize < fontSize) {
+    fontSize = Math.max(finalFontSize, 120); // 最小120px
     lineHeight = fontSize * 1.4;
     // フォントを再設定
     switch (fontFamily) {
@@ -552,22 +574,22 @@ export async function generateSlideImage(
   // 3. 人物画像を読み込み
   const personImage = await loadImage(personBuffer);
   
-  // 4. 人物の位置を決定（Vision API分析結果を優先、なければランダム）
-  const personPosition = photoAnalysis?.personPosition || selectPersonPosition();
+  // 4. 人物の位置を決定（スライド番号に応じてバリエーション）
+  const personPosition = selectPersonPosition();
   const personCoords = getPersonCoordinates(
     personPosition,
     personImage.width,
     personImage.height,
     IMAGE_SIZE.width,
-    IMAGE_SIZE.height
+    IMAGE_SIZE.height,
+    slideNumber // スライド番号を渡してバリエーションを出す
   );
   
-  // 5. テキスト位置を決定（Vision API分析結果を優先、なければ人物と被らないように）
+  // 5. テキスト位置を決定（人物と被らないように）
   const textLength = lines.join('').length;
-  const textPosition = photoAnalysis?.recommendedTextPosition || selectTextPositionForPerson(personPosition, textLength);
+  const textPosition = selectTextPositionForPerson(personPosition, textLength);
   
-  console.log(`📍 レイアウト決定: 人物=${personPosition}, テキスト=${textPosition}${photoAnalysis ? ' (AI分析)' : ' (自動)'}`);
-
+  console.log(`📍 スライド${slideNumber}: 人物=${personPosition}, テキスト=${textPosition}`);
   
   // 6. 人物の影を描画
   const scaledWidth = personImage.width * personCoords.scale;
