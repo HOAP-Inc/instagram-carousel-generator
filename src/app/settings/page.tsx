@@ -90,9 +90,14 @@ export default function SettingsPage() {
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedSettings));
       setSettings(updatedSettings);
-      setMessage({ type: 'success', text: '設定を保存しました！' });
+      setMessage({ type: 'success', text: '✅ 設定を保存しました！' });
+      
+      // 3秒後にメッセージを消す
+      setTimeout(() => {
+        setMessage(null);
+      }, 3000);
     } catch (error) {
-      setMessage({ type: 'error', text: '保存に失敗しました' });
+      setMessage({ type: 'error', text: '❌ 保存に失敗しました' });
     } finally {
       setIsSaving(false);
     }
@@ -216,11 +221,18 @@ export default function SettingsPage() {
             </h1>
           </div>
           <button
-            className="btn-primary"
+            className={`btn-primary transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={handleSave}
             disabled={isSaving}
           >
-            {isSaving ? '保存中...' : '💾 保存'}
+            {isSaving ? (
+              <>
+                <span className="inline-block animate-spin mr-2">⏳</span>
+                保存中...
+              </>
+            ) : (
+              '💾 保存'
+            )}
           </button>
         </div>
       </header>

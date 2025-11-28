@@ -227,7 +227,8 @@ function drawTextWithShadow(
   ctx: CanvasRenderingContext2D,
   lines: [string, string],
   position: TextPosition,
-  designNumber: DesignNumber
+  designNumber: DesignNumber,
+  customTextColor: string | null = null
 ) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
@@ -281,20 +282,24 @@ function drawTextWithShadow(
     ctx.lineWidth = Math.max(6, fontSize * 0.06);
     ctx.strokeText(line, coords.x, y);
     
-    // 本文（デザイン別カラー）
+    // 本文（カスタムカラーまたはデザイン別カラー）
     let textColor: string;
-    switch (designNumber) {
-      case 1:
-        textColor = '#FF1493';
-        break;
-      case 2:
-        textColor = '#4169E1';
-        break;
-      case 3:
-        textColor = '#FF8C00';
-        break;
-      default:
-        textColor = '#FF1493';
+    if (customTextColor) {
+      textColor = customTextColor;
+    } else {
+      switch (designNumber) {
+        case 1:
+          textColor = '#FF1493';
+          break;
+        case 2:
+          textColor = '#4169E1';
+          break;
+        case 3:
+          textColor = '#FF8C00';
+          break;
+        default:
+          textColor = '#FF1493';
+      }
     }
     
     ctx.fillStyle = textColor;
@@ -430,13 +435,26 @@ export async function generateSlideImage(
   lines: [string, string],
   designNumber: DesignNumber,
   slideNumber: 1 | 2 | 3,
-  logoImage: string | null = null
+  logoImage: string | null = null,
+  customDesign: any = null
 ): Promise<Buffer> {
   const canvas = createCanvas(IMAGE_SIZE.width, IMAGE_SIZE.height);
   const ctx = canvas.getContext('2d');
   
-  // 1. 背景を描画
-  drawBackground(ctx, designNumber);
+  // 1. 背景を描画（カスタムデザインがあれば使用）
+  if (customDesign && customDesign.backgroundImage) {
+    // カスタム背景画像を使用
+    try {
+      const bgBuffer = base64ToBuffer(customDesign.backgroundImage);
+      const bgImage = await loadImage(bgBuffer);
+      ctx.drawImage(bgImage, 0, 0, IMAGE_SIZE.width, IMAGE_SIZE.height);
+    } catch (error) {
+      console.warn('⚠️ カスタム背景画像の読み込みに失敗、デフォルトを使用:', error);
+      drawBackground(ctx, designNumber);
+    }
+  } else {
+    drawBackground(ctx, designNumber);
+  }
   
   // 2. 人物の背景を除去
   console.log(`🎭 スライド${slideNumber}: 背景除去中...`);
@@ -487,8 +505,9 @@ export async function generateSlideImage(
     scaledHeight
   );
   
-  // 8. テキストを描画
-  drawTextWithShadow(ctx, lines, textPosition, designNumber);
+  // 8. テキストを描画（カスタムテキストカラーを使用）
+  const customTextColor = customDesign?.textColor || null;
+  drawTextWithShadow(ctx, lines, textPosition, designNumber, customTextColor);
   
   // 9. ロゴを描画（1枚目のみ）
   if (slideNumber === 1 && logoImage) {
@@ -559,13 +578,14 @@ export async function generateCarouselImages(
     slide3: [string, string];
   },
   designNumber: DesignNumber,
-  logoImage: string | null = null
+  logoImage: string | null = null,
+  customDesign: any = null
 ): Promise<[Buffer, Buffer, Buffer]> {
   console.log('🖼️ カルーセル画像生成開始...');
   
-  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1, logoImage);
-  const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2);
-  const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3);
+  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1, logoImage, customDesign);
+  const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2, null, customDesign);
+  const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3, null, customDesign);
   
   console.log('🎉 カルーセル画像生成完了！');
   return [image1, image2, image3];

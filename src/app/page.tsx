@@ -52,6 +52,7 @@ export default function Home() {
   const [photoPreviews, setPhotoPreviews] = useState<(string | null)[]>([null, null, null]);
   const [clientContext, setClientContext] = useState('');
   const [logoImage, setLogoImage] = useState<string | null>(null);
+  const [customDesign, setCustomDesign] = useState<any>(null);
   
   // 生成状態
   const [isLoading, setIsLoading] = useState(false);
@@ -74,11 +75,17 @@ export default function Home() {
         const context = formatKnowledgeForLLM(settings.knowledge);
         setClientContext(context);
         setLogoImage(settings.logoImage || null);
+        
+        // デザインテンプレートを取得
+        if (settings.designs && designNumber) {
+          const designKey = `design${designNumber}` as 'design1' | 'design2' | 'design3';
+          setCustomDesign(settings.designs[designKey]);
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
-  }, []);
+  }, [designNumber]);
 
   // 写真選択ハンドラー
   const handlePhotoSelect = useCallback((index: number, file: File | null) => {
@@ -179,6 +186,7 @@ export default function Home() {
           photos: photoBase64s,
           clientContext, // 設定から読み込んだナレッジを送信
           logoImage, // ロゴ画像を送信
+          customDesign, // カスタムデザインを送信
         }),
       });
       
