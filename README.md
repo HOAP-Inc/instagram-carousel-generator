@@ -43,7 +43,17 @@ NOTION_API_KEY=secret_your-notion-key-here
 3. Integration Tokenをコピー
 4. 対象のNotionページで、Integrationに接続を許可
 
-### 3. 開発サーバーの起動
+### 3. フォントファイルの配置（オプション）
+
+カスタムフォントを使用する場合は、以下のフォントファイルを `public/fonts/` ディレクトリに配置してください：
+
+- **けいおんフォント**: `K8x12S.ttf`（一般的なファイル名）
+- **HGゴシック**: `HGGothicE.ttf`（一般的なファイル名）
+- **花鳥風月**: `KachouFuugetsu.ttf`（一般的なファイル名）
+
+**注意**: 実際のフォントファイル名が異なる場合は、`src/lib/image-generator.ts` の `registerCustomFont` 関数内のファイル名を実際のファイル名に変更してください。
+
+### 4. 開発サーバーの起動
 
 ```bash
 npm run dev
@@ -136,6 +146,11 @@ instagram-carousel-generator/
 │       └── validation.ts          # バリデーション
 ├── tmp/                           # 一時ファイル（git管理外）
 ├── public/
+│   ├── fonts/                     # フォントファイル
+│   │   ├── NotoSansJP-Bold.otf   # デフォルトフォント（必須）
+│   │   ├── K8x12S.ttf            # けいおんフォント（オプション）
+│   │   ├── HGGothicE.ttf         # HGゴシック（オプション）
+│   │   └── KachouFuugetsu.ttf    # 花鳥風月（オプション）
 │   └── backgrounds/               # 背景パターン画像
 └── README.md
 ```

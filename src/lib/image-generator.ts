@@ -7,19 +7,37 @@ import fs from 'fs';
 import path from 'path';
 
 // 日本語フォントを登録
-let fontRegistered = false;
-try {
-  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Bold.otf');
-  if (fs.existsSync(fontPath)) {
-    registerFont(fontPath, { family: 'NotoSansJP', weight: 'bold' });
-    fontRegistered = true;
-    console.log('✅ 日本語フォント登録成功:', fontPath);
-  } else {
-    console.warn('⚠️ フォントファイルが見つかりません:', fontPath);
+const registeredFonts = new Set<string>();
+
+function registerCustomFont(fontName: string, fontFile: string, weight: string = 'normal') {
+  if (registeredFonts.has(fontName)) return;
+  
+  try {
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', fontFile);
+    if (fs.existsSync(fontPath)) {
+      registerFont(fontPath, { family: fontName, weight });
+      registeredFonts.add(fontName);
+      console.log(`✅ フォント登録成功: ${fontName} (${fontFile})`);
+    } else {
+      console.warn(`⚠️ フォントファイルが見つかりません: ${fontPath}`);
+    }
+  } catch (error) {
+    console.error(`❌ フォント登録エラー (${fontName}):`, error);
   }
-} catch (error) {
-  console.error('❌ フォント登録エラー:', error);
 }
+
+// デフォルトフォント（NotoSansJP）
+registerCustomFont('NotoSansJP', 'NotoSansJP-Bold.otf', 'bold');
+
+// 追加フォント
+// 注意: フォントファイルは public/fonts/ に配置してください
+// ファイル名が異なる場合は、以下のファイル名を実際のファイル名に変更してください
+registerCustomFont('Keion', 'K8x12S.ttf', 'normal'); // けいおんフォント（一般的なファイル名: K8x12S.ttf）
+registerCustomFont('HGGothic', 'HGGothicE.ttf', 'normal'); // HGゴシック（一般的なファイル名: HGGothicE.ttf）
+registerCustomFont('KachouFuugetsu', 'KachouFuugetsu.ttf', 'normal'); // 花鳥風月（一般的なファイル名: KachouFuugetsu.ttf）
+
+// 互換性のため（既存コード用）
+const fontRegistered = registeredFonts.size > 0;
 
 type LayoutDecision = {
   personPosition: PersonPosition;
@@ -367,7 +385,19 @@ function drawTextWithShadow(
   
   // フォントファミリーを決定
   const fontFamily = customFontFamily || 'NotoSansJP';
-  let fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", sans-serif`;
+  let fontString = '';
+  
+  // カスタムフォントが指定されている場合
+  if (fontFamily === 'Keion') {
+    fontString = `bold ${fontSize}px "Keion", "NotoSansJP", "Hiragino Sans", sans-serif`;
+  } else if (fontFamily === 'HGGothic') {
+    fontString = `bold ${fontSize}px "HGGothic", "NotoSansJP", "Hiragino Sans", sans-serif`;
+  } else if (fontFamily === 'KachouFuugetsu') {
+    fontString = `bold ${fontSize}px "KachouFuugetsu", "NotoSansJP", "Hiragino Sans", sans-serif`;
+  } else {
+    fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", sans-serif`;
+  }
+  
   ctx.font = fontString;
   
   // 自動改行してテキストを分割
@@ -378,7 +408,16 @@ function drawTextWithShadow(
   // テキストが高さ制限を超える場合、フォントサイズを縮小
   while (totalHeight > maxTextHeight && fontSize > 100) {
     fontSize -= 10;
-    fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", sans-serif`;
+    // フォントファミリーを維持
+    if (fontFamily === 'Keion') {
+      fontString = `bold ${fontSize}px "Keion", "NotoSansJP", "Hiragino Sans", sans-serif`;
+    } else if (fontFamily === 'HGGothic') {
+      fontString = `bold ${fontSize}px "HGGothic", "NotoSansJP", "Hiragino Sans", sans-serif`;
+    } else if (fontFamily === 'KachouFuugetsu') {
+      fontString = `bold ${fontSize}px "KachouFuugetsu", "NotoSansJP", "Hiragino Sans", sans-serif`;
+    } else {
+      fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", sans-serif`;
+    }
     ctx.font = fontString;
     wrappedLines = wrapText(ctx, fullText, maxWidth);
     lineHeight = fontSize * 1.3;
@@ -567,19 +606,8 @@ export async function generateSlideImage(
   photoAnalysis: any = null, // Vision APIの分析結果
   manualOverride: SlideManualOverride | null = null
 ): Promise<Buffer> {
-  // フォント登録を確実に行う
-  if (!fontRegistered) {
-    try {
-      const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Bold.otf');
-      if (fs.existsSync(fontPath)) {
-        registerFont(fontPath, { family: 'NotoSansJP', weight: 'bold' });
-        fontRegistered = true;
-        console.log(`✅ スライド${slideNumber}: フォント登録成功`);
-      }
-    } catch (error) {
-      console.error(`❌ スライド${slideNumber}: フォント登録エラー:`, error);
-    }
-  }
+  // フォント登録はモジュール読み込み時に実行済み（registerCustomFont関数）
+  // カスタムフォントが使用される場合は、既に登録されている
   
   const canvas = createCanvas(IMAGE_SIZE.width, IMAGE_SIZE.height);
   const ctx = canvas.getContext('2d');

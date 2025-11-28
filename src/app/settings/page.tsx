@@ -534,6 +534,9 @@ export default function SettingsPage() {
                           onChange={(e) => updateDesign(designKey, 'fontFamily', e.target.value)}
                         >
                           <option value="NotoSansJP">Noto Sans JP（ゴシック）</option>
+                          <option value="Keion">けいおんフォント</option>
+                          <option value="HGGothic">HGゴシック</option>
+                          <option value="KachouFuugetsu">花鳥風月</option>
                           <option value="HiraginoMaruGothic">ヒラギノ丸ゴシック</option>
                           <option value="YuGothic">游ゴシック</option>
                           <option value="MPlus1p">M PLUS 1p</option>
