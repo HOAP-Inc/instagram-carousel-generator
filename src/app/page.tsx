@@ -53,6 +53,12 @@ export default function Home() {
   const [clientContext, setClientContext] = useState('');
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [customDesign, setCustomDesign] = useState<any>(null);
+  const [designNames, setDesignNames] = useState<{ [key: number]: string }>({
+    1: 'デザイン 1',
+    2: 'デザイン 2',
+    3: 'デザイン 3',
+  });
+  const [designPreviews, setDesignPreviews] = useState<{ [key: number]: any }>({});
   
   // 生成状態
   const [isLoading, setIsLoading] = useState(false);
@@ -76,10 +82,27 @@ export default function Home() {
         setClientContext(context);
         setLogoImage(settings.logoImage || null);
         
-        // デザインテンプレートを取得
-        if (settings.designs && designNumber) {
-          const designKey = `design${designNumber}` as 'design1' | 'design2' | 'design3';
-          setCustomDesign(settings.designs[designKey]);
+        // デザイン名とプレビューを取得
+        if (settings.designs) {
+          const names: { [key: number]: string } = {};
+          const previews: { [key: number]: any } = {};
+          
+          names[1] = settings.designs.design1?.name || 'デザイン 1';
+          names[2] = settings.designs.design2?.name || 'デザイン 2';
+          names[3] = settings.designs.design3?.name || 'デザイン 3';
+          
+          previews[1] = settings.designs.design1;
+          previews[2] = settings.designs.design2;
+          previews[3] = settings.designs.design3;
+          
+          setDesignNames(names);
+          setDesignPreviews(previews);
+          
+          // デザインテンプレートを取得
+          if (designNumber) {
+            const designKey = `design${designNumber}` as 'design1' | 'design2' | 'design3';
+            setCustomDesign(settings.designs[designKey]);
+          }
         }
       }
     } catch (error) {
@@ -400,21 +423,26 @@ export default function Home() {
                         border: '2px solid transparent'
                       } : {}}>
                       <div 
-                        className="w-16 h-16 rounded-lg mb-2"
-                        style={{
-                          background: num === 1 
-                            ? 'linear-gradient(135deg, #00D4FF 0%, #FF69B4 100%)'
-                            : num === 2
-                            ? 'linear-gradient(135deg, #FFB6C1 0%, #87CEEB 100%)'
-                            : 'linear-gradient(135deg, #FFD700 0%, #808080 100%)'
-                        }}
+                        className="w-16 h-16 rounded-lg mb-2 relative overflow-hidden"
+                        style={
+                          designPreviews[num]?.backgroundImage
+                            ? {
+                                backgroundImage: `url(${designPreviews[num].backgroundImage})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                              }
+                            : {
+                                background: designPreviews[num]
+                                  ? `linear-gradient(135deg, ${designPreviews[num].primaryColor} 0%, ${designPreviews[num].accentColor} 100%)`
+                                  : num === 1 
+                                  ? 'linear-gradient(135deg, #00D4FF 0%, #FF69B4 100%)'
+                                  : num === 2
+                                  ? 'linear-gradient(135deg, #FFB6C1 0%, #87CEEB 100%)'
+                                  : 'linear-gradient(135deg, #FFD700 0%, #808080 100%)'
+                              }
+                        }
                       />
-                      <span className="font-semibold text-[var(--text)]">デザイン {num}</span>
-                      <span className="text-xs text-[var(--text-light)]">
-                        {num === 1 && 'シアン＆マゼンタ'}
-                        {num === 2 && 'ピンク＆ブルー'}
-                        {num === 3 && 'イエロー＆グレー'}
-                      </span>
+                      <span className="font-semibold text-[var(--text)]">{designNames[num]}</span>
                     </div>
                   </label>
                 ))}
