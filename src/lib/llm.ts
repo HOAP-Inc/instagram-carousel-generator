@@ -56,7 +56,7 @@ ${surveyText.slice(0, 100)}...
 export async function generateContent(
   params: LLMInputParams
 ): Promise<{ success: boolean; data?: LLMResponse; error?: string }> {
-  const { surveyText, photosMeta, clientContext } = params;
+  const { surveyText, photosMeta, clientContext, mainTheme } = params;
 
   // APIキーがない場合はデモモード
   if (!process.env.OPENAI_API_KEY) {
@@ -68,7 +68,7 @@ export async function generateContent(
   }
 
   const systemPrompt = generateSystemPrompt(clientContext);
-  const userPrompt = generateUserPrompt(surveyText, photosMeta);
+  const userPrompt = generateUserPrompt(surveyText, photosMeta, mainTheme);
 
   let retryCount = 0;
   let lastResponse: string = '';

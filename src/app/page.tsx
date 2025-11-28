@@ -47,6 +47,7 @@ export default function Home() {
   // フォーム状態
   const [notionUrl, setNotionUrl] = useState('');
   const [surveyText, setSurveyText] = useState('');
+  const [mainTheme, setMainTheme] = useState(''); // 一番伝えたいテーマ
   const [designNumber, setDesignNumber] = useState<DesignNumber>(1);
   const [photos, setPhotos] = useState<(File | null)[]>([null, null, null]);
   const [photoPreviews, setPhotoPreviews] = useState<(string | null)[]>([null, null, null]);
@@ -186,6 +187,10 @@ export default function Home() {
       setError('アンケート文を入力してください');
       return;
     }
+    if (!mainTheme.trim()) {
+      setError('一番伝えたいテーマを入力してください');
+      return;
+    }
     if (photos.some(p => !p)) {
       setError('写真を3枚すべてアップロードしてください');
       return;
@@ -205,6 +210,7 @@ export default function Home() {
         body: JSON.stringify({
           notionPageUrl: notionUrl || '', // 任意
           surveyText,
+          mainTheme, // 一番伝えたいテーマを追加
           designNumber,
           photos: photoBase64s,
           clientContext, // 設定から読み込んだナレッジを送信
@@ -353,10 +359,28 @@ export default function Home() {
               </p>
             </section>
 
-            {/* 写真アップロード */}
+            {/* 一番伝えたいテーマ */}
             <section className="card">
               <div className="section-header">
                 <span className="section-number">3</span>
+                <h2 className="section-title">この投稿で一番伝えたいテーマ</h2>
+              </div>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="例：チームワークの良さ、働きやすい環境、スタッフの成長..."
+                value={mainTheme}
+                onChange={(e) => setMainTheme(e.target.value)}
+              />
+              <p className="text-sm text-[var(--text-light)] mt-2">
+                このコンテンツで最も強調したいポイントを一言で入力してください
+              </p>
+            </section>
+
+            {/* 写真アップロード */}
+            <section className="card">
+              <div className="section-header">
+                <span className="section-number">4</span>
                 <h2 className="section-title">写真アップロード（3枚）</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -401,7 +425,7 @@ export default function Home() {
             {/* デザイン選択 */}
             <section className="card">
               <div className="section-header">
-                <span className="section-number">4</span>
+                <span className="section-number">5</span>
                 <h2 className="section-title">デザイン選択</h2>
               </div>
               <div className="grid grid-cols-3 gap-4">

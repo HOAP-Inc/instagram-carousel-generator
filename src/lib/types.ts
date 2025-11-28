@@ -47,6 +47,7 @@ export interface LLMInputParams {
   surveyText: string; // アンケート全文
   photosMeta: string; // 写真3枚の簡単な説明（MVPは空でOK）
   clientContext: string; // 顧客の登録知識（MVPは空でOK）
+  mainTheme?: string; // この投稿で一番伝えたいテーマ
 }
 
 /**

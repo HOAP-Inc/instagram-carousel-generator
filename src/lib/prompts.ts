@@ -261,8 +261,16 @@ export function generateSystemPrompt(clientContext?: string): string {
 /**
  * ユーザープロンプトを生成
  */
-export function generateUserPrompt(surveyText: string, photosMeta?: string): string {
-  let prompt = `■投稿にしたいエピソード・テーマ\n${surveyText}`;
+export function generateUserPrompt(surveyText: string, photosMeta?: string, mainTheme?: string): string {
+  let prompt = '';
+  
+  // 一番伝えたいテーマを最優先で表示
+  if (mainTheme) {
+    prompt += `■【最重要】この投稿で一番伝えたいテーマ\n${mainTheme}\n\n`;
+    prompt += `※このテーマを中心に、以下のエピソードを再構成してください。\n※1枚目のタイトルは必ずこのテーマを反映させてください。\n※2枚目・3枚目も、このテーマに沿った内容にしてください。\n\n`;
+  }
+  
+  prompt += `■投稿にしたいエピソード・素材\n${surveyText}`;
   
   if (photosMeta) {
     prompt += `\n\n■写真の説明\n${photosMeta}`;

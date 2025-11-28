@@ -11,7 +11,7 @@ import { createJob, updateJob, savePhoto, saveOutputImage } from '@/lib/storage'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { notionPageUrl, surveyText, designNumber, photos, clientContext = '', logoImage = null, customDesign = null } = body;
+    const { notionPageUrl, surveyText, mainTheme = '', designNumber, photos, clientContext = '', logoImage = null, customDesign = null } = body;
 
     // バリデーション
     if (!surveyText || !designNumber || !photos || photos.length !== 3) {
@@ -72,11 +72,12 @@ export async function POST(request: NextRequest) {
     }
     updateJob(job.id, { photosPaths: photoPaths, status: 'processing' });
 
-    // LLMでコンテンツ生成（クライアントナレッジを使用）
+    // LLMでコンテンツ生成（クライアントナレッジと伝えたいテーマを使用）
     const llmResult = await generateContent({
       surveyText,
       photosMeta: '',
       clientContext, // クライアントのナレッジを渡す
+      mainTheme, // 一番伝えたいテーマを渡す
     });
 
     if (!llmResult.success || !llmResult.data) {
