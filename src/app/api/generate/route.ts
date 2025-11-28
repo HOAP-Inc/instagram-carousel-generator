@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GenerateRequest, DesignNumber } from '@/lib/types';
 import { extractNotionPageId } from '@/lib/validation';
 import { verifyNotionPage } from '@/lib/notion';
-import { generateContent } from '@/lib/llm';
+import { generateContent, analyzePhotoLayout } from '@/lib/llm';
 import { generateCarouselImages, bufferToBase64 } from '@/lib/image-generator';
 import { createJob, updateJob, savePhoto, saveOutputImage } from '@/lib/storage';
 
@@ -92,6 +92,15 @@ export async function POST(request: NextRequest) {
 
     updateJob(job.id, { llmResponseJson: llmResult.data });
 
+    // 写真を分析（Vision API）
+    console.log('🔍 写真をAI分析中...');
+    const photoAnalyses = await Promise.all([
+      analyzePhotoLayout(photos[0]),
+      analyzePhotoLayout(photos[1]),
+      analyzePhotoLayout(photos[2]),
+    ]);
+    console.log('✅ 写真分析完了');
+
     // 画像生成
     try {
       const [image1, image2, image3] = await generateCarouselImages(
@@ -103,7 +112,8 @@ export async function POST(request: NextRequest) {
         },
         designNumber as DesignNumber,
         logoImage, // ロゴ画像を渡す
-        customDesign // カスタムデザインを渡す
+        customDesign, // カスタムデザインを渡す
+        photoAnalyses as [any, any, any] // AI分析結果を渡す
       );
 
       // 画像を保存

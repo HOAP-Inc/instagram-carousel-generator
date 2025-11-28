@@ -6,6 +6,17 @@ import { generateSystemPrompt, generateUserPrompt, generateRetryPrompt } from '.
 import { validateLLMResponse, parseLLMResponse, isLLMFailureMessage } from './validation';
 import { MAX_LLM_RETRIES } from './constants';
 
+/**
+ * 写真分析結果
+ */
+export interface PhotoAnalysis {
+  personPosition: 'left' | 'center' | 'right'; // 人物の位置
+  facePosition: { x: number; y: number } | null; // 顔の位置（相対座標 0-1）
+  emptySpaces: ('top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center')[]; // 空きスペース
+  brightness: 'dark' | 'medium' | 'bright'; // 明るさ
+  recommendedTextPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center'; // 推奨テキスト位置
+}
+
 // OpenAI クライアントを遅延初期化（ビルド時のエラー回避）
 let openai: OpenAI | null = null;
 
@@ -139,5 +150,104 @@ export async function generateContent(
     success: false,
     error: `文字数の条件を満たせませんでした。以下の問題があります：\n${lastValidationErrors.join('\n')}\n\nアンケート内容をもう少し詳しく記入して、再度お試しください。`,
   };
+}
+
+/**
+ * Vision APIで写真を分析し、最適なレイアウトを決定
+ */
+export async function analyzePhotoLayout(photoBase64: string): Promise<PhotoAnalysis> {
+  // APIキーがない場合はデフォルト値を返す
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('⚠️ OPENAI_API_KEY が設定されていません。デフォルトレイアウトを使用します。');
+    return {
+      personPosition: 'center',
+      facePosition: { x: 0.5, y: 0.3 },
+      emptySpaces: ['top-left', 'top-right'],
+      brightness: 'medium',
+      recommendedTextPosition: 'top-left',
+    };
+  }
+
+  try {
+    const client = getOpenAIClient();
+    
+    console.log('🔍 Vision APIで写真を分析中...');
+    
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `あなたは画像レイアウトの専門家です。写真を分析し、テキストを配置するのに最適な位置を判断してください。
+
+以下の情報を JSON 形式で返してください：
+{
+  "personPosition": "left" | "center" | "right",
+  "facePosition": { "x": 0-1, "y": 0-1 } | null,
+  "emptySpaces": ["top-left", "top-right", "bottom-left", "bottom-right", "center"],
+  "brightness": "dark" | "medium" | "bright",
+  "recommendedTextPosition": "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
+}
+
+判断基準：
+1. personPosition: 人物が画像の左/中央/右のどこにいるか
+2. facePosition: 顔の位置（相対座標、顔がない場合はnull）
+3. emptySpaces: テキストを配置できる空きスペース（複数可）
+4. brightness: 画像全体の明るさ
+5. recommendedTextPosition: 最もテキストが読みやすい位置（1つ）
+
+重要：
+- 人物や顔と重ならない位置を推奨
+- 明るすぎる/暗すぎる場所は避ける
+- 視線誘導を考慮（上→下、左→右）`,
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'この写真を分析して、テキストを配置するのに最適な位置を教えてください。',
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: photoBase64.startsWith('data:') ? photoBase64 : `data:image/jpeg;base64,${photoBase64}`,
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 500,
+      temperature: 0.3,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Vision APIからレスポンスがありません');
+    }
+
+    console.log('📊 Vision API レスポンス:', content);
+
+    // JSONを抽出
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('JSONが見つかりません');
+    }
+
+    const analysis: PhotoAnalysis = JSON.parse(jsonMatch[0]);
+    console.log('✅ 写真分析完了:', analysis);
+
+    return analysis;
+  } catch (error) {
+    console.error('❌ Vision API エラー:', error);
+    // エラー時はデフォルト値を返す
+    return {
+      personPosition: 'center',
+      facePosition: { x: 0.5, y: 0.3 },
+      emptySpaces: ['top-left', 'top-right'],
+      brightness: 'medium',
+      recommendedTextPosition: 'top-left',
+    };
+  }
 }
 

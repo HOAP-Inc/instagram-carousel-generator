@@ -482,7 +482,7 @@ async function removeBackgroundFromImage(imageData: Buffer | string): Promise<Bu
 }
 
 /**
- * スライド画像を生成（人物切り抜き版）
+ * スライド画像を生成（人物切り抜き版 + AI レイアウト）
  */
 export async function generateSlideImage(
   photoData: Buffer | string,
@@ -490,7 +490,8 @@ export async function generateSlideImage(
   designNumber: DesignNumber,
   slideNumber: 1 | 2 | 3,
   logoImage: string | null = null,
-  customDesign: any = null
+  customDesign: any = null,
+  photoAnalysis: any = null // Vision APIの分析結果
 ): Promise<Buffer> {
   const canvas = createCanvas(IMAGE_SIZE.width, IMAGE_SIZE.height);
   const ctx = canvas.getContext('2d');
@@ -531,8 +532,8 @@ export async function generateSlideImage(
   // 3. 人物画像を読み込み
   const personImage = await loadImage(personBuffer);
   
-  // 4. 人物の位置を決定（ランダム）
-  const personPosition = selectPersonPosition();
+  // 4. 人物の位置を決定（Vision API分析結果を優先、なければランダム）
+  const personPosition = photoAnalysis?.personPosition || selectPersonPosition();
   const personCoords = getPersonCoordinates(
     personPosition,
     personImage.width,
@@ -541,9 +542,12 @@ export async function generateSlideImage(
     IMAGE_SIZE.height
   );
   
-  // 5. テキスト位置を決定（人物と被らないように）
+  // 5. テキスト位置を決定（Vision API分析結果を優先、なければ人物と被らないように）
   const textLength = lines.join('').length;
-  const textPosition = selectTextPositionForPerson(personPosition, textLength);
+  const textPosition = photoAnalysis?.recommendedTextPosition || selectTextPositionForPerson(personPosition, textLength);
+  
+  console.log(`📍 レイアウト決定: 人物=${personPosition}, テキスト=${textPosition}${photoAnalysis ? ' (AI分析)' : ' (自動)'}`);
+
   
   // 6. 人物の影を描画
   const scaledWidth = personImage.width * personCoords.scale;
@@ -623,7 +627,7 @@ export async function generateSlideImage(
 }
 
 /**
- * 3枚のカルーセル画像を生成
+ * 3枚のカルーセル画像を生成（AI レイアウト対応）
  */
 export async function generateCarouselImages(
   photos: [Buffer | string, Buffer | string, Buffer | string],
@@ -634,13 +638,14 @@ export async function generateCarouselImages(
   },
   designNumber: DesignNumber,
   logoImage: string | null = null,
-  customDesign: any = null
+  customDesign: any = null,
+  photoAnalyses: [any, any, any] | null = null // 各写真の分析結果
 ): Promise<[Buffer, Buffer, Buffer]> {
   console.log('🖼️ カルーセル画像生成開始...');
   
-  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1, logoImage, customDesign);
-  const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2, null, customDesign);
-  const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3, null, customDesign);
+  const image1 = await generateSlideImage(photos[0], slides.slide1, designNumber, 1, logoImage, customDesign, photoAnalyses?.[0]);
+  const image2 = await generateSlideImage(photos[1], slides.slide2, designNumber, 2, null, customDesign, photoAnalyses?.[1]);
+  const image3 = await generateSlideImage(photos[2], slides.slide3, designNumber, 3, null, customDesign, photoAnalyses?.[2]);
   
   console.log('🎉 カルーセル画像生成完了！');
   return [image1, image2, image3];
