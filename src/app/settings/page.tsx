@@ -22,25 +22,28 @@ export function getDefaultSettings(): ClientSettings {
     },
     designs: {
       design1: {
-        name: 'シアン＆マゼンタ',
+        name: 'デザイン1',
         backgroundImage: null,
         primaryColor: '#00D4FF',
         accentColor: '#FF69B4',
         textColor: '#FF1493',
+        fontFamily: 'NotoSansJP',
       },
       design2: {
-        name: 'ピンク＆ブルー',
+        name: 'デザイン2',
         backgroundImage: null,
         primaryColor: '#FFB6C1',
         accentColor: '#87CEEB',
         textColor: '#4169E1',
+        fontFamily: 'NotoSansJP',
       },
       design3: {
-        name: 'イエロー＆グレー',
+        name: 'デザイン3',
         backgroundImage: null,
         primaryColor: '#FFD700',
         accentColor: '#808080',
         textColor: '#FF8C00',
+        fontFamily: 'NotoSansJP',
       },
     },
     createdAt: new Date().toISOString(),
@@ -506,7 +509,7 @@ export default function SettingsPage() {
                       )}
                     </div>
 
-                    {/* カラー設定 */}
+                    {/* 設定 */}
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-2 text-[var(--text)]">
@@ -519,57 +522,97 @@ export default function SettingsPage() {
                           onChange={(e) => updateDesign(designKey, 'name', e.target.value)}
                         />
                       </div>
-                      
-                      <div className="grid grid-cols-3 gap-3">
+
+                      {/* フォント選択 */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-[var(--text)]">
+                          フォント
+                        </label>
+                        <select
+                          className="input-field"
+                          value={design.fontFamily || 'NotoSansJP'}
+                          onChange={(e) => updateDesign(designKey, 'fontFamily', e.target.value)}
+                        >
+                          <option value="NotoSansJP">Noto Sans JP（ゴシック）</option>
+                          <option value="HiraginoMaruGothic">ヒラギノ丸ゴシック</option>
+                          <option value="YuGothic">游ゴシック</option>
+                          <option value="MPlus1p">M PLUS 1p</option>
+                        </select>
+                      </div>
+
+                      {/* 背景画像がない場合のみ色設定を表示 */}
+                      {!design.backgroundImage && (
+                        <>
+                          <div className="text-sm text-[var(--text-light)] mb-2">
+                            ⚠️ 背景画像がない場合のグラデーション設定
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium mb-1 text-[var(--text-light)]">
+                                メイン色
+                              </label>
+                              <input
+                                type="color"
+                                className="w-full h-10 rounded-lg cursor-pointer"
+                                value={design.primaryColor}
+                                onChange={(e) => updateDesign(designKey, 'primaryColor', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium mb-1 text-[var(--text-light)]">
+                                アクセント色
+                              </label>
+                              <input
+                                type="color"
+                                className="w-full h-10 rounded-lg cursor-pointer"
+                                value={design.accentColor}
+                                onChange={(e) => updateDesign(designKey, 'accentColor', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium mb-1 text-[var(--text-light)]">
+                                文字色
+                              </label>
+                              <input
+                                type="color"
+                                className="w-full h-10 rounded-lg cursor-pointer"
+                                value={design.textColor}
+                                onChange={(e) => updateDesign(designKey, 'textColor', e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          {/* プレビュー */}
+                          <div
+                            className="h-20 rounded-lg flex items-center justify-center"
+                            style={{
+                              background: `linear-gradient(135deg, ${design.primaryColor}, ${design.accentColor})`,
+                            }}
+                          >
+                            <span
+                              className="font-bold text-lg"
+                              style={{ color: design.textColor }}
+                            >
+                              サンプルテキスト
+                            </span>
+                          </div>
+                        </>
+                      )}
+
+                      {/* 背景画像がある場合の文字色設定 */}
+                      {design.backgroundImage && (
                         <div>
-                          <label className="block text-xs font-medium mb-1 text-[var(--text-light)]">
-                            メイン色
-                          </label>
-                          <input
-                            type="color"
-                            className="w-full h-10 rounded-lg cursor-pointer"
-                            value={design.primaryColor}
-                            onChange={(e) => updateDesign(designKey, 'primaryColor', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-[var(--text-light)]">
-                            アクセント色
-                          </label>
-                          <input
-                            type="color"
-                            className="w-full h-10 rounded-lg cursor-pointer"
-                            value={design.accentColor}
-                            onChange={(e) => updateDesign(designKey, 'accentColor', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-[var(--text-light)]">
+                          <label className="block text-sm font-medium mb-2 text-[var(--text)]">
                             文字色
                           </label>
                           <input
                             type="color"
-                            className="w-full h-10 rounded-lg cursor-pointer"
+                            className="w-full h-12 rounded-lg cursor-pointer"
                             value={design.textColor}
                             onChange={(e) => updateDesign(designKey, 'textColor', e.target.value)}
                           />
                         </div>
-                      </div>
-
-                      {/* プレビュー */}
-                      <div
-                        className="h-20 rounded-lg flex items-center justify-center"
-                        style={{
-                          background: `linear-gradient(135deg, ${design.primaryColor}, ${design.accentColor})`,
-                        }}
-                      >
-                        <span
-                          className="font-bold text-lg"
-                          style={{ color: design.textColor }}
-                        >
-                          サンプルテキスト
-                        </span>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </section>

@@ -168,5 +168,6 @@ export interface DesignTemplate {
   primaryColor: string;
   accentColor: string;
   textColor: string;
+  fontFamily: string; // フォント選択
 }
 

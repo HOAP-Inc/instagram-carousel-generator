@@ -228,7 +228,8 @@ function drawTextWithShadow(
   lines: [string, string],
   position: TextPosition,
   designNumber: DesignNumber,
-  customTextColor: string | null = null
+  customTextColor: string | null = null,
+  customFontFamily: string | null = null
 ) {
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
@@ -243,8 +244,27 @@ function drawTextWithShadow(
   let fontSize = calculateFontSize(fullText);
   let lineHeight = fontSize * 1.5;
   
-  // 日本語フォント（Noto Sans JP）
-  ctx.font = `bold ${fontSize}px "NotoSansJP", "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+  // フォントファミリーを決定
+  const fontFamily = customFontFamily || 'NotoSansJP';
+  let fontString = '';
+  
+  switch (fontFamily) {
+    case 'HiraginoMaruGothic':
+      fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+      break;
+    case 'YuGothic':
+      fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", sans-serif`;
+      break;
+    case 'MPlus1p':
+      fontString = `bold ${fontSize}px "M PLUS 1p", sans-serif`;
+      break;
+    case 'NotoSansJP':
+    default:
+      fontString = `bold ${fontSize}px "NotoSansJP", sans-serif`;
+      break;
+  }
+  
+  ctx.font = fontString;
   
   // 各行の幅を計算して、枠からはみ出す場合はフォントサイズを縮小
   const maxWidth = canvasWidth - (padding * 2);
@@ -263,7 +283,23 @@ function drawTextWithShadow(
   
   if (needsResize) {
     lineHeight = fontSize * 1.5;
-    ctx.font = `bold ${fontSize}px "NotoSansJP", "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+    // フォントを再設定
+    switch (fontFamily) {
+      case 'HiraginoMaruGothic':
+        fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+        break;
+      case 'YuGothic':
+        fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", sans-serif`;
+        break;
+      case 'MPlus1p':
+        fontString = `bold ${fontSize}px "M PLUS 1p", sans-serif`;
+        break;
+      case 'NotoSansJP':
+      default:
+        fontString = `bold ${fontSize}px "NotoSansJP", sans-serif`;
+        break;
+    }
+    ctx.font = fontString;
   }
   
   lines.forEach((line, index) => {
@@ -505,9 +541,10 @@ export async function generateSlideImage(
     scaledHeight
   );
   
-  // 8. テキストを描画（カスタムテキストカラーを使用）
+  // 8. テキストを描画（カスタムテキストカラーとフォントを使用）
   const customTextColor = customDesign?.textColor || null;
-  drawTextWithShadow(ctx, lines, textPosition, designNumber, customTextColor);
+  const customFontFamily = customDesign?.fontFamily || null;
+  drawTextWithShadow(ctx, lines, textPosition, designNumber, customTextColor, customFontFamily);
   
   // 9. ロゴを描画（1枚目のみ）
   if (slideNumber === 1 && logoImage) {
