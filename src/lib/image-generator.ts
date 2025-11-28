@@ -120,18 +120,18 @@ function getTextCoordinates(
 }
 
 /**
- * テキストサイズを自動調整（超大きく、迫力のあるサイズ）
+ * テキストサイズを自動調整（超超大きく、迫力のあるサイズ）
  */
-function calculateFontSize(text: string, minSize: number = 140, maxSize: number = 250): number {
+function calculateFontSize(text: string, minSize: number = 160, maxSize: number = 280): number {
   const charCount = text.length;
   
-  // 文字数が少ないほど超大きく
-  if (charCount <= 15) return maxSize; // 250px
-  if (charCount <= 25) return 220;
-  if (charCount <= 35) return 190;
-  if (charCount <= 50) return 160;
-  if (charCount <= 70) return 145;
-  return minSize; // 140px
+  // 文字数が少ないほど超超大きく
+  if (charCount <= 15) return maxSize; // 280px
+  if (charCount <= 25) return 240;
+  if (charCount <= 35) return 210;
+  if (charCount <= 50) return 180;
+  if (charCount <= 70) return 165;
+  return minSize; // 160px
 }
 
 /**
@@ -253,27 +253,29 @@ function drawTextWithShadow(
   let fontSize = calculateFontSize(fullText);
   let lineHeight = fontSize * 1.5;
   
-  // フォントファミリーを決定
+  // フォントファミリーを決定（デフォルトはNotoSansJP）
   const fontFamily = customFontFamily || 'NotoSansJP';
   let fontString = '';
   
   switch (fontFamily) {
     case 'HiraginoMaruGothic':
-      fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+      fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "NotoSansJP", "Rounded Mplus 1c", sans-serif`;
       break;
     case 'YuGothic':
-      fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", sans-serif`;
+      fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", "NotoSansJP", sans-serif`;
       break;
     case 'MPlus1p':
-      fontString = `bold ${fontSize}px "M PLUS 1p", sans-serif`;
+      fontString = `bold ${fontSize}px "M PLUS 1p", "NotoSansJP", sans-serif`;
       break;
     case 'NotoSansJP':
     default:
-      fontString = `bold ${fontSize}px "NotoSansJP", sans-serif`;
+      // NotoSansJPを明示的に指定（フォールバックも含む）
+      fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
       break;
   }
   
   ctx.font = fontString;
+  console.log(`📝 フォント設定: ${fontString}`);
   
   // 各行の幅を計算して、枠からはみ出す場合はフォントサイズを縮小
   const maxWidth = canvasWidth - (padding * 2);
@@ -295,20 +297,21 @@ function drawTextWithShadow(
     // フォントを再設定
     switch (fontFamily) {
       case 'HiraginoMaruGothic':
-        fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", sans-serif`;
+        fontString = `bold ${fontSize}px "Hiragino Maru Gothic ProN", "NotoSansJP", "Rounded Mplus 1c", sans-serif`;
         break;
       case 'YuGothic':
-        fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", sans-serif`;
+        fontString = `bold ${fontSize}px "Yu Gothic", "YuGothic", "NotoSansJP", sans-serif`;
         break;
       case 'MPlus1p':
-        fontString = `bold ${fontSize}px "M PLUS 1p", sans-serif`;
+        fontString = `bold ${fontSize}px "M PLUS 1p", "NotoSansJP", sans-serif`;
         break;
       case 'NotoSansJP':
       default:
-        fontString = `bold ${fontSize}px "NotoSansJP", sans-serif`;
+        fontString = `bold ${fontSize}px "NotoSansJP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
         break;
     }
     ctx.font = fontString;
+    console.log(`📝 フォント再設定（リサイズ後）: ${fontString}`);
   }
   
   lines.forEach((line, index) => {
@@ -493,6 +496,20 @@ export async function generateSlideImage(
   customDesign: any = null,
   photoAnalysis: any = null // Vision APIの分析結果
 ): Promise<Buffer> {
+  // フォント登録を確実に行う
+  if (!fontRegistered) {
+    try {
+      const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Bold.otf');
+      if (fs.existsSync(fontPath)) {
+        registerFont(fontPath, { family: 'NotoSansJP', weight: 'bold' });
+        fontRegistered = true;
+        console.log(`✅ スライド${slideNumber}: フォント登録成功`);
+      }
+    } catch (error) {
+      console.error(`❌ スライド${slideNumber}: フォント登録エラー:`, error);
+    }
+  }
+  
   const canvas = createCanvas(IMAGE_SIZE.width, IMAGE_SIZE.height);
   const ctx = canvas.getContext('2d');
   
