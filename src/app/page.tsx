@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, type PointerEvent as ReactPointerEvent } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { DesignNumber, PersonPosition, TextPosition } from '@/lib/types';
 
@@ -30,23 +30,6 @@ const createDefaultTweaks = (): DesignTweak[] => ([
   { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0, textOffsetX: 0, textOffsetY: 0 },
   { fontScale: 1, personPosition: 'auto', textPosition: 'auto', offsetX: 0, offsetY: 0, textOffsetX: 0, textOffsetY: 0 },
 ]);
-
-const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-const PERSON_OFFSET_X_LIMIT = 260;
-const PERSON_OFFSET_Y_LIMIT = 160;
-const TEXT_OFFSET_X_LIMIT = 220;
-const TEXT_OFFSET_Y_LIMIT = 160;
-type DragTarget = 'person' | 'text';
-type DragState = {
-  index: number;
-  target: DragTarget;
-  startX: number;
-  startY: number;
-  initialOffsetX: number;
-  initialOffsetY: number;
-  scaleX: number;
-  scaleY: number;
-};
 
 const SETTINGS_KEY = 'instagram-carousel-settings';
 
@@ -117,96 +100,8 @@ export default function Home() {
   const [notionSaveSuccess, setNotionSaveSuccess] = useState(false);
   
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
-  const dragStateRef = useRef<DragState | null>(null);
 
   const tupleFromText = (text: string): [string, string] => [text.trim(), ''];
-
-  const handlePointerMove = useCallback((event: PointerEvent) => {
-    const state = dragStateRef.current;
-    if (!state) return;
-    
-    // プレビュー画像のサイズでの移動量を計算
-    const deltaXPreview = event.clientX - state.startX;
-    const deltaYPreview = event.clientY - state.startY;
-    
-    // 実際の画像サイズにスケーリング
-    const deltaX = deltaXPreview * state.scaleX;
-    const deltaY = deltaYPreview * state.scaleY;
-    
-    // 初期オフセット（プレビューサイズ）を実際の画像サイズに変換
-    const initialOffsetXActual = state.initialOffsetX * state.scaleX;
-    const initialOffsetYActual = state.initialOffsetY * state.scaleY;
-    
-    setDesignTweaks((prev) => {
-      const next = [...prev];
-      const current = next[state.index];
-      if (!current) return prev;
-      if (state.target === 'person') {
-        next[state.index] = {
-          ...current,
-          offsetX: clampValue(initialOffsetXActual + deltaX, -PERSON_OFFSET_X_LIMIT, PERSON_OFFSET_X_LIMIT),
-          offsetY: clampValue(initialOffsetYActual + deltaY, -PERSON_OFFSET_Y_LIMIT, PERSON_OFFSET_Y_LIMIT),
-        };
-      } else {
-        next[state.index] = {
-          ...current,
-          textOffsetX: clampValue(initialOffsetXActual + deltaX, -TEXT_OFFSET_X_LIMIT, TEXT_OFFSET_X_LIMIT),
-          textOffsetY: clampValue(initialOffsetYActual + deltaY, -TEXT_OFFSET_Y_LIMIT, TEXT_OFFSET_Y_LIMIT),
-        };
-      }
-      return next;
-    });
-  }, []);
-
-  const stopDragging = useCallback(() => {
-    dragStateRef.current = null;
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', stopDragging);
-  }, [handlePointerMove]);
-
-  const handlePointerDown = useCallback((index: number, target: DragTarget) => (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const tweak = designTweaks[index];
-    if (!tweak) return;
-    
-    // プレビュー画像の要素を取得してスケールを計算
-    const previewImages = document.querySelectorAll('.preview-image');
-    const previewImg = previewImages[index] as HTMLImageElement;
-    if (!previewImg) {
-      console.warn('プレビュー画像が見つかりません');
-      return;
-    }
-    
-    const rect = previewImg.getBoundingClientRect();
-    const scaleX = 1080 / rect.width; // 実際の画像幅 / プレビュー幅
-    const scaleY = 1350 / rect.height; // 実際の画像高さ / プレビュー高さ
-    
-    // 現在のオフセットをプレビューサイズに変換
-    const currentOffsetX = target === 'person' ? tweak.offsetX : tweak.textOffsetX;
-    const currentOffsetY = target === 'person' ? tweak.offsetY : tweak.textOffsetY;
-    const previewOffsetX = currentOffsetX / scaleX;
-    const previewOffsetY = currentOffsetY / scaleY;
-    
-    dragStateRef.current = {
-      index,
-      target,
-      startX: event.clientX,
-      startY: event.clientY,
-      initialOffsetX: previewOffsetX,
-      initialOffsetY: previewOffsetY,
-      scaleX,
-      scaleY,
-    };
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', stopDragging);
-  }, [designTweaks, handlePointerMove, stopDragging]);
-
-  useEffect(() => {
-    return () => {
-      stopDragging();
-    };
-  }, [stopDragging]);
 
   const handleSlideTextChange = (key: SlideKey, value: string) => {
     setEditableSlides((prev) => ({ ...prev, [key]: value }));
@@ -781,67 +676,159 @@ export default function Home() {
               </button>
             </div>
 
-            {/* 画像プレビュー */}
+            {/* 画像プレビュー & デザイン微調整（スライドごとに横並び） */}
             <section className="card">
-              <h3 className="font-semibold mb-4 text-[var(--text)]">カルーセル画像</h3>
-              <p className="text-xs text-[var(--text-light)] mb-3">
-                プレビュー上の丸いハンドル（青=人物 / ピンク=テキスト）をドラッグすると位置を直感的に調整できます。
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-[var(--text)]">カルーセル画像 & デザイン微調整</h3>
+                  <p className="text-xs text-[var(--text-light)]">
+                    各スライドごとに、画像を見ながらテキストサイズ・人物位置・テキスト位置を調整できます。
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button className="btn-secondary text-sm" onClick={resetDesignTweaks}>
+                    リセット
+                  </button>
+                  <button
+                    className="btn-primary text-sm"
+                    onClick={handleRegenerateImages}
+                    disabled={isRegenerating}
+                  >
+                    {isRegenerating ? (
+                      <>
+                        <div className="loading-spinner w-4 h-4" />
+                        再描画中...
+                      </>
+                    ) : (
+                      '画像を再描画'
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-4">
                 {result.images.map((url, index) => {
                   const tweak = designTweaks[index];
-                  // ハンドルの位置はプレビュー画像のサイズで計算（スケーリングはドラッグ時に適用）
-                  // デフォルトではオフセット0で表示し、ドラッグ時にスケーリングを適用
-                  const personOffsetX = (tweak?.offsetX ?? 0);
-                  const personOffsetY = (tweak?.offsetY ?? 0);
-                  const textOffsetX = (tweak?.textOffsetX ?? 0);
-                  const textOffsetY = (tweak?.textOffsetY ?? 0);
-                  
-                  // プレビュー画像のサイズを取得（デフォルトでは1:1で表示）
-                  // 実際のスケーリングはドラッグ時に計算される
-                  const personHandleStyle = {
-                    left: `calc(50% + ${personOffsetX}px)`,
-                    top: `calc(76% + ${personOffsetY}px)`,
-                  };
-                  const textHandleStyle = {
-                    left: `calc(50% + ${textOffsetX}px)`,
-                    top: `calc(22% + ${textOffsetY}px)`,
-                  };
                   return (
-                    <div key={index} className="relative">
-                      <img
-                        src={url}
-                        alt={`Slide ${index + 1}`}
-                        className="preview-image w-full object-cover"
-                        style={{ aspectRatio: '1080 / 1350' }}
-                      />
-                      <span className="absolute top-2 left-2 badge">
-                        {index + 1}枚目
-                      </span>
-                      <div className="drag-overlay">
-                        <button
-                          type="button"
-                          className="drag-handle drag-handle-person"
-                          style={personHandleStyle}
-                          onPointerDown={handlePointerDown(index, 'person')}
-                          title={`人物位置: X=${personOffsetX.toFixed(0)}px, Y=${personOffsetY.toFixed(0)}px (ドラッグで調整)`}
-                        >
-                          人
-                        </button>
-                        <button
-                          type="button"
-                          className="drag-handle drag-handle-text"
-                          style={textHandleStyle}
-                          onPointerDown={handlePointerDown(index, 'text')}
-                          title={`テキスト位置: X=${textOffsetX.toFixed(0)}px, Y=${textOffsetY.toFixed(0)}px (ドラッグで調整)`}
-                        >
-                          文
-                        </button>
+                    <div
+                      key={index}
+                      className="bg-[var(--bg-via)] rounded-lg p-4 md:grid md:grid-cols-2 gap-4 items-start"
+                    >
+                      <div className="relative mb-4 md:mb-0">
+                        <img
+                          src={url}
+                          alt={`Slide ${index + 1}`}
+                          className="preview-image w-full object-cover"
+                          style={{ aspectRatio: '1080 / 1350' }}
+                        />
+                        <span className="absolute top-2 left-2 badge">
+                          {index + 1}枚目
+                        </span>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-[var(--text)]">{index + 1}枚目の微調整</span>
+                        </div>
+                        <div>
+                          <label className="text-xs text-[var(--text-light)]">人物配置</label>
+                          <select
+                            className="input-field mt-1"
+                            value={tweak.personPosition}
+                            onChange={(e) =>
+                              handleDesignTweakChange(index, 'personPosition', e.target.value as PositionOption)
+                            }
+                          >
+                            {(['auto', 'left', 'center', 'right'] as PositionOption[]).map((option) => (
+                              <option key={option} value={option}>
+                                {option === 'auto'
+                                  ? '自動'
+                                  : option === 'left'
+                                  ? '左寄せ'
+                                  : option === 'right'
+                                  ? '右寄せ'
+                                  : '中央'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-[var(--text-light)]">テキスト配置</label>
+                          <select
+                            className="input-field mt-1"
+                            value={tweak.textPosition}
+                            onChange={(e) =>
+                              handleDesignTweakChange(index, 'textPosition', e.target.value as TextPositionOption)
+                            }
+                          >
+                            {([
+                              'auto',
+                              'top-left',
+                              'top-right',
+                              'bottom-left',
+                              'bottom-right',
+                              'center',
+                            ] as TextPositionOption[]).map((option) => (
+                              <option key={option} value={option}>
+                                {option === 'auto' ? '自動' : option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-[var(--text-light)]">
+                            テキストサイズ倍率: {tweak.fontScale.toFixed(2)}x
+                          </label>
+                          <input
+                            type="range"
+                            min={0.7}
+                            max={1.4}
+                            step={0.02}
+                            value={tweak.fontScale}
+                            onChange={(e) =>
+                              handleDesignTweakChange(index, 'fontScale', parseFloat(e.target.value))
+                            }
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-[var(--text-light)]">
+                            人物 横位置微調整: {tweak.offsetX}px
+                          </label>
+                          <input
+                            type="range"
+                            min={-200}
+                            max={200}
+                            step={5}
+                            value={tweak.offsetX}
+                            onChange={(e) =>
+                              handleDesignTweakChange(index, 'offsetX', parseInt(e.target.value))
+                            }
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-[var(--text-light)]">
+                            人物 縦位置微調整: {tweak.offsetY}px
+                          </label>
+                          <input
+                            type="range"
+                            min={-80}
+                            max={80}
+                            step={5}
+                            value={tweak.offsetY}
+                            onChange={(e) =>
+                              handleDesignTweakChange(index, 'offsetY', parseInt(e.target.value))
+                            }
+                            className="w-full"
+                          />
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              {regenMessage && (
+                <p className="text-sm text-green-500 mt-4">{regenMessage}</p>
+              )}
             </section>
 
             {/* テキストプレビュー */}
@@ -918,112 +905,6 @@ export default function Home() {
               </div>
             </section>
 
-            {/* デザイン微調整 */}
-            <section className="card">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-[var(--text)]">デザイン微調整（テキストサイズ・人物位置）</h3>
-                  <p className="text-xs text-[var(--text-light)]">各スライドごとにフォント倍率と人物位置を調整できます</p>
-                </div>
-                <div className="flex gap-2">
-                  <button className="btn-secondary text-sm" onClick={resetDesignTweaks}>
-                    リセット
-                  </button>
-                  <button
-                    className="btn-primary text-sm"
-                    onClick={handleRegenerateImages}
-                    disabled={isRegenerating}
-                  >
-                    {isRegenerating ? (
-                      <>
-                        <div className="loading-spinner w-4 h-4" />
-                        再描画中...
-                      </>
-                    ) : (
-                      '画像を再描画'
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {designTweaks.map((tweak, index) => (
-                  <div key={index} className="bg-[var(--bg-via)] rounded-lg p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-[var(--text)]">{index + 1}枚目</span>
-                    </div>
-                    <div>
-                      <label className="text-xs text-[var(--text-light)]">人物配置</label>
-                      <select
-                        className="input-field mt-1"
-                        value={tweak.personPosition}
-                        onChange={(e) => handleDesignTweakChange(index, 'personPosition', e.target.value as PositionOption)}
-                      >
-                        {(['auto', 'left', 'center', 'right'] as PositionOption[]).map((option) => (
-                          <option key={option} value={option}>
-                            {option === 'auto' ? '自動' : option === 'left' ? '左寄せ' : option === 'right' ? '右寄せ' : '中央'}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-[var(--text-light)]">テキスト配置</label>
-                      <select
-                        className="input-field mt-1"
-                        value={tweak.textPosition}
-                        onChange={(e) => handleDesignTweakChange(index, 'textPosition', e.target.value as TextPositionOption)}
-                      >
-                        {(['auto', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'] as TextPositionOption[]).map((option) => (
-                          <option key={option} value={option}>
-                            {option === 'auto' ? '自動' : option}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-[var(--text-light)]">
-                        テキストサイズ倍率: {tweak.fontScale.toFixed(2)}x
-                      </label>
-                      <input
-                        type="range"
-                        min={0.7}
-                        max={1.4}
-                        step={0.02}
-                        value={tweak.fontScale}
-                        onChange={(e) => handleDesignTweakChange(index, 'fontScale', parseFloat(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-[var(--text-light)]">人物 横位置微調整: {tweak.offsetX}px</label>
-                      <input
-                        type="range"
-                        min={-200}
-                        max={200}
-                        step={5}
-                        value={tweak.offsetX}
-                        onChange={(e) => handleDesignTweakChange(index, 'offsetX', parseInt(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-[var(--text-light)]">人物 縦位置微調整: {tweak.offsetY}px</label>
-                      <input
-                        type="range"
-                        min={-80}
-                        max={80}
-                        step={5}
-                        value={tweak.offsetY}
-                        onChange={(e) => handleDesignTweakChange(index, 'offsetY', parseInt(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {regenMessage && (
-                <p className="text-sm text-green-500 mt-4">{regenMessage}</p>
-              )}
-            </section>
 
             {/* エラー表示 */}
             {error && (
