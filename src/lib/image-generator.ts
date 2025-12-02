@@ -164,9 +164,12 @@ function getPersonCoordinates(
   const scaledWidth = personWidth * scale;
   const scaledHeight = personHeight * scale;
   
-  // 下部に配置（少しだけ上下に揺らす）
-  const verticalJitter = Math.floor(Math.random() * 20) - 10 + (override?.personOffsetY || 0);
-  const y = canvasHeight - scaledHeight + 40 + verticalJitter;
+  // 下部に配置
+  // ユーザーがオフセットを指定している場合はランダムジッターを入れず、スライダーの値をそのまま使う
+  const hasManualOffset = Boolean(override && (override.personOffsetX || override.personOffsetY));
+  const baseVerticalJitter = hasManualOffset ? 0 : Math.floor(Math.random() * 20) - 10;
+  const manualOffsetY = override?.personOffsetY || 0;
+  const y = canvasHeight - scaledHeight + 40 + baseVerticalJitter + manualOffsetY;
   
   let x: number;
   switch (position) {
@@ -188,8 +191,9 @@ function getPersonCoordinates(
       break;
   }
   
-  const horizontalJitter = Math.floor(Math.random() * 40) - 20 + (override?.personOffsetX || 0);
-  const safeX = clamp(x + horizontalJitter, 40, canvasWidth - scaledWidth - 40);
+  const baseHorizontalJitter = hasManualOffset ? 0 : Math.floor(Math.random() * 40) - 20;
+  const manualOffsetX = override?.personOffsetX || 0;
+  const safeX = clamp(x + baseHorizontalJitter + manualOffsetX, 40, canvasWidth - scaledWidth - 40);
   
   return { x: safeX, y, scale };
 }

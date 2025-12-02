@@ -101,6 +101,7 @@ export default function Home() {
   
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
   const autoRegenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasUserAdjustedDesignTweaksRef = useRef(false);
 
   const tupleFromText = (text: string): [string, string] => [text.trim(), ''];
 
@@ -131,6 +132,7 @@ export default function Home() {
   };
 
   const handleDesignTweakChange = <K extends keyof DesignTweak>(index: number, field: K, value: DesignTweak[K]) => {
+    hasUserAdjustedDesignTweaksRef.current = true;
     setDesignTweaks((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -139,6 +141,7 @@ export default function Home() {
   };
 
   const resetDesignTweaks = () => {
+    hasUserAdjustedDesignTweaksRef.current = false;
     setDesignTweaks(createDefaultTweaks);
   };
 
@@ -223,6 +226,8 @@ export default function Home() {
   // デザイン微調整が変更されたら、自動で画像を再描画（デバウンス）
   useEffect(() => {
     if (!result || !jobId) return;
+    // ユーザーがまだ微調整を触っていない場合は自動再描画しない
+    if (!hasUserAdjustedDesignTweaksRef.current) return;
 
     if (autoRegenTimeoutRef.current) {
       clearTimeout(autoRegenTimeoutRef.current);
@@ -251,6 +256,8 @@ export default function Home() {
         slide3: result.slide3.filter(Boolean).join('\n') || result.slide3[0] || '',
         caption: result.caption,
       });
+      // 新しい結果が来たタイミングでは自動再描画フラグをリセット
+      hasUserAdjustedDesignTweaksRef.current = false;
       setDesignTweaks(createDefaultTweaks);
       setRegenMessage(null);
     }
