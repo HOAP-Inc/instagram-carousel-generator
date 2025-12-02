@@ -100,6 +100,7 @@ export default function Home() {
   const [notionSaveSuccess, setNotionSaveSuccess] = useState(false);
   
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
+  const autoRegenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tupleFromText = (text: string): [string, string] => [text.trim(), ''];
 
@@ -144,6 +145,9 @@ export default function Home() {
   const handleRegenerateImages = async () => {
     if (!jobId) {
       setError('ジョブ情報がないため再描画できません。最初から生成してください。');
+      return;
+    }
+    if (isRegenerating) {
       return;
     }
     
@@ -215,6 +219,28 @@ export default function Home() {
       setIsRegenerating(false);
     }
   };
+
+  // デザイン微調整が変更されたら、自動で画像を再描画（デバウンス）
+  useEffect(() => {
+    if (!result || !jobId) return;
+
+    if (autoRegenTimeoutRef.current) {
+      clearTimeout(autoRegenTimeoutRef.current);
+    }
+
+    autoRegenTimeoutRef.current = setTimeout(() => {
+      // スライダー連続操作中に前回の再描画がまだ終わっている場合はスキップ
+      if (!isRegenerating) {
+        handleRegenerateImages();
+      }
+    }, 700);
+
+    return () => {
+      if (autoRegenTimeoutRef.current) {
+        clearTimeout(autoRegenTimeoutRef.current);
+      }
+    };
+  }, [designTweaks, jobId, result, isRegenerating]);
 
   // 生成結果に合わせて編集フォームを同期
   useEffect(() => {
